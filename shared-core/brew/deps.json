@@ -1,107 +1,88 @@
 {
-  "parent-tool": {
-    "direct": [],
-    "transitive": [
-      "dep-level"
-    ]
+  "pi-coding-agent": {
+    "direct_deps": [
+      "abseil",
+      "ada-url",
+      "brotli",
+      "c-ares",
+      "ca-certificates",
+      "fmt",
+      "hdrhistogram_c",
+      "highway",
+      "icu4c@79",
+      "libffi",
+      "libnghttp2",
+      "libuv",
+      "llhttp",
+      "lz4",
+      "merve",
+      "nbytes",
+      "node",
+      "openssl@4",
+      "readline",
+      "simdjson",
+      "simdutf",
+      "sqlite",
+      "uvwasi",
+      "xz",
+      "zstd"
+    ],
+    "dep_count": 25
+  },
+  "rtk": {
+    "direct_deps": [],
+    "dep_count": 0
+  },
+  "graphify": {
+    "direct_deps": [],
+    "dep_count": 0
   },
   "node": {
-    "direct": [],
-    "transitive": [
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct"
-    ]
+    "direct_deps": [
+      "abseil",
+      "ada-url",
+      "brotli",
+      "c-ares",
+      "ca-certificates",
+      "fmt",
+      "hdrhistogram_c",
+      "highway",
+      "icu4c@79",
+      "libffi",
+      "libnghttp2",
+      "libuv",
+      "llhttp",
+      "lz4",
+      "merve",
+      "nbytes",
+      "openssl@4",
+      "readline",
+      "simdjson",
+      "simdutf",
+      "sqlite",
+      "uvwasi",
+      "xz",
+      "zstd"
+    ],
+    "dep_count": 24
   },
-  "python@3.15": {
-    "direct": [],
-    "transitive": [
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct"
-    ]
+  "gitnexus": {
+    "direct_deps": [],
+    "dep_count": 0
   },
-  "graphifyy": {
-    "direct": [],
-    "transitive": [
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct",
-      "direct"
-    ]
+  "git-lfs": {
+    "direct_deps": [],
+    "dep_count": 0
   },
-  "node+1": {
-    "direct": [],
-    "transitive": [
-      "transitive",
-      "transitive",
-      "transitive",
-      "transitive",
-      "transitive",
-      "transitive",
-      "transitive",
-      "transitive",
-      "transitive",
-      "transitive"
-    ]
+  "ripgrep": {
+    "direct_deps": [
+      "pcre2"
+    ],
+    "dep_count": 1
   },
-  "python@3.15+1": {
-    "direct": [],
-    "transitive": [
-      "transitive",
-      "transitive",
-      "transitive",
-      "transitive"
-    ]
+  "_stats": {
+    "formulae_installed": 272,
+    "casks_installed": 94,
+    "total_packages": 366
   }
 }

@@ -1,5 +1,44 @@
 {
-  "_comment": "Fragment from ~/.codex/ - hooks.json + session config",
-  "hookTargets": "~/.codex/hooks.json",
-  "toolAdapters": "auto-generated from shared-core/hooks/hooks.json"
+  "_source": "~/.codex/hooks.json + session configuration",
+  "version": "1.0.0",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks codex UserPromptSubmit; fi",
+        "timeout": 10
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks codex PreToolUse; fi",
+        "timeout": 10
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks codex PostToolUse; fi",
+        "timeout": 10
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "",
+        "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks codex PermissionRequest; fi",
+        "timeout": 10
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks codex Stop; fi",
+        "timeout": 10
+      }
+    ]
+  },
+  "toolAdapters": "auto-generated from shared-core/hooks/hooks.json",
+  "skills": [],
+  "notes": "Extracted from live codex config"
 }

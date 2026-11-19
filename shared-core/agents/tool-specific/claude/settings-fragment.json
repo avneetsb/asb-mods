@@ -1,17 +1,220 @@
 {
-  "_comment": "Fragment from ~/.claude/ - CLAUDE.md + hooks + tools config",
-  "tools": [
-    "bash",
-    "edit",
-    "read",
-    "glob",
-    "grep",
-    "ls",
-    "newFile",
-    "kill",
-    "diff"
+  "_source": "~/.claude/settings.json + CLAUDE.md",
+  "version": "1.0.0",
+  "defaults": {
+    "model": "opus",
+    "apiKeyHelper": "npx --offline --registry=https://registry.internal.example/api/npm/internal --yes @internal-scope/claude-code-token get_token"
+  },
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://gateway.internal.example/llmgatewaysvc/v1/anthropic",
+    "CLAUDE_CODE_API_KEY_HELPER_TTL_MS": "360000000",
+    "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1",
+    "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": "1",
+    "CLAUDE_CODE_GOAL_CHECKIN_MINUTES": "0",
+    "GRAPHIFY_GEMINI_MODEL": "gemma-4-E4B-it-oQ8e",
+    "OPENAI_API_KEY": "gemma-local-studio",
+    "OPENAI_BASE_URL": "http://127.0.0.1:1234/v1",
+    "OPENAI_MODEL": "gemma-4-E4B-it-oQ8e"
+  },
+  "permissions": {
+    "allow": [
+      "mcp__codegraph__*",
+      "mcp__gitnexus__*",
+      "mcp__obsidian-connect-readwrite__*",
+      "mcp__plugin_obsidian-connect_obsidian-connect-readwrite__*",
+      "Read(~/.local/share/obsidian-connect/**)"
+    ],
+    "deny": [
+      "ReportFindings",
+      "ScheduleWakeup",
+      "Workflow",
+      "WebFetch",
+      "WebSearch"
+    ]
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks claude Notification; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node '/Users/example/.claude/hooks/gitnexus/gitnexus-hook.cjs'",
+            "timeout": 300000,
+            "statusMessage": "Reindexing GitNexus after commit..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          }
+        ]
+      },
+      {
+        "matcher": "Grep|Glob|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node '/Users/example/.claude/hooks/gitnexus/gitnexus-hook.cjs'",
+            "timeout": 10,
+            "statusMessage": "Enriching with GitNexus graph context..."
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx --registry=https://registry.npmjs.org -y ccstatusline@latest --hook"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks claude SessionEnd; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Users/example/.claude/tools-setup/verify-tools.sh'",
+            "timeout": 600000,
+            "statusMessage": "Verifying Claude Code tooling setup..."
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/Users/example/.hindsight/coding-agents/dist/claude-sessionstart-hook.js\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks claude Stop; fi",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/Users/example/.hindsight/coding-agents/dist/claude-stop-hook.js\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks claude StopFailure; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "codegraph prompt-hook"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node '/Users/example/.claude/hooks/gitnexus/gitnexus-hook.cjs'",
+            "timeout": 10,
+            "statusMessage": "Enriching with GitNexus graph context..."
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx --registry=https://registry.npmjs.org -y ccstatusline@latest --hook"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks claude UserPromptSubmit; fi",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/Users/example/.hindsight/coding-agents/dist/claude-hook.js\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
+  "skills": [
+    {
+      "name": "graphify",
+      "path": "~/.claude/skills/graphify/SKILL.md",
+      "trigger": "/graphify"
+    },
+    {
+      "name": "cavecrew",
+      "path": "~/.claude/.agents/skills/cavecrew/",
+      "trigger": null
+    }
   ],
-  "permission": "maxAllow",
-  "telemetry": "off",
-  "promptTemplates": {}
+  "prompt_directives": "# graphify\n- **graphify** (`~/.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`\nWhen the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.\n\n# Tool usage rules (all sessions, all projects)\n\n- **rtk**: prefix ALL shell commands with `rtk` (even inside `&&` chains) when available. Meta commands always direct: `rtk gain`, `rtk discover`, `rtk proxy <cmd>`. Safe passthrough if no filter exists.\n- **gitnexus**: if\n...",
+  "notes": "Extracted from live config. Re-run install.sh to update if settings change."
 }
