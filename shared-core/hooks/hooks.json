@@ -1,0 +1,125 @@
+{
+  "version": "1.0.0",
+  "description": "asb-mods shared hook definitions — adapters generate tool-specific configs",
+  "hooks": {
+    "code_session_start": {
+      "when": "on_session_start",
+      "trigger_event": "UserPromptSubmit",
+      "action": "printf '%s\\n' 'Caveman is default reply style: concise, no filler.'",
+      "env_prereqs": ["PASEO_TERMINAL_ID"],
+      "tool_adapters": {
+        "codex": {
+          "target": "~/.codex/hooks.json",
+          "key": "UserPromptSubmit",
+          "inject_position": "first"
+        },
+        "claude": {
+          "target": "~/.claude/hooks/after-user-prompt.cjs",
+          "type": "before_user_prompt"
+        },
+        "pi": {
+          "target": "none",
+          "reason": "Handled by pi-subagents/skills/council-mode or custom extensions"
+        }
+      }
+    },
+    "paseo_terminal_display": {
+      "when": "permission_request || post_tool_use || pre_tool_use || stop",
+      "trigger_event": "PermissionRequest|PostToolUse|PreToolUse|Stop",
+      "action": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks codex UserHookName; fi",
+      "env_prereqs": ["PASEO_TERMINAL_ID"],
+      "tool_adapters": {
+        "codex": {
+          "target": "~/.codex/hooks.json",
+          "keys": ["PermissionRequest", "PostToolUse", "PreToolUse", "Stop"],
+          "inject_position": "first"
+        },
+        "claude": {
+          "target": "~/.claude/hooks/",
+          "type": "before_action"
+        },
+        "pi": {
+          "target": "~/.pi/agent/extensions/paseo-extension.ts",
+          "reason": "Pi uses extension hooks directly"
+        }
+      }
+    },
+    "gitnexus_db_lock_probe": {
+      "when": "on_command_start",
+      "trigger_event": "GitNexusProbe",
+      "action_file": "hooks/gitnexus/hook-db-lock-probe.cjs",
+      "tool_adapters": {
+        "pi": {
+          "target": "loaded via mcp__gitnexus proxy",
+          "reason": "GitNexus operates through MCP, not shell hooks"
+        }
+      }
+    },
+    "impeccable_hook": {
+      "when": "before_edit",
+      "trigger_event": "CodeEdit",
+      "action_file": "skills/impeccable/scripts/hook.mjs",
+      "admin_file": "skills/impeccable/scripts/hook-admin.mjs",
+      "before_edit_file": "skills/impeccable/scripts/hook-before-edit.mjs",
+      "lib_file": "skills/impeccable/scripts/hook-lib.mjs",
+      "tool_adapters": {
+        "pi": {
+          "target": "loaded by pi-lens before-save hooks",
+          "reason": "Pi tooling loads .mjs files directly"
+        }
+      }
+    },
+    "obsidian_codex_hooks": {
+      "when": "on_session_start",
+      "trigger_event": "ObsidianConnect",
+      "action_file": "plugins/cache/obsidian-connect/obsidian-connect/0.1.56/hooks/codex-hooks.json",
+      "tool_adapters": {
+        "codex": {
+          "target": "~/.codex/hooks.json",
+          "source": "plugins/cache/obsidian-connect/obsidian-connect/0.1.56/hooks/hooks.json",
+          "merge_strategy": "append"
+        }
+      }
+    },
+    "obsidian_cursor_hooks": {
+      "when": "on_session_start",
+      "trigger_event": "CursorOpen",
+      "action_file": "plugins/cache/obsidian-connect/obsidian-connect/0.1.56/hooks/cursor-hooks.json",
+      "tool_adapters": {
+        "cursor": {
+          "target": "~/.cursor/hooks.json",
+          "source": "plugins/cache/obsidian-connect/obsidian-connect/0.1.56/hooks/cursor-hooks.json",
+          "merge_strategy": "append"
+        }
+      }
+    },
+    "ponytail_hooks": {
+      "when": "on_session_start",
+      "trigger_event": "SessionStart",
+      "action_files": [
+        "plugins/cache/ponytail/ponytail/4.9.0/hooks/copilot-hooks.json",
+        "plugins/cache/ponytail/ponytail/4.9.0/hooks/qoder-hooks.json",
+        "plugins/cache/ponytail/ponytail/4.9.0/hooks/claude-codex-hooks.json"
+      ],
+      "test_file": "plugins/cache/ponytail/ponytail/4.9.0/tests/hooks.test.js",
+      "windows_test": "plugins/cache/ponytail/ponytail/4.9.0/tests/hooks-windows.test.js",
+      "tool_adapters": {
+        "codex": {
+          "target": "~/.codex/hooks.json",
+          "source": "plugins/cache/ponytail/ponytail/4.9.0/hooks/claude-codex-hooks.json",
+          "merge_strategy": "append"
+        },
+        "claude": {
+          "target": "plugins/cache/ponytail/ponytail/4.9.0/.opencode/plugins/ponytail.mjs",
+          "type": "opencode-plugin"
+        }
+      }
+    }
+  },
+  "adapter_globs": {
+    "shared_env_setup": "HOOKS_ENV_DIR='~/.config/pi-setup/hook-env.sh'",
+    "shared_secret_loader": "SECRETS_ENV='~/.config/pi-setup/secrets.env'",
+    "paseo_cli_locator": "PASEO_HOOK_CLI env-var (default: paseo)",
+    "secrets_propagation": "from secrets.env to project .env templates"
+  }
+}

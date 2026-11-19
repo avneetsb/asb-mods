@@ -1,0 +1,17 @@
+{
+  "_comment": "Fragment from ~/.claude/ - CLAUDE.md + hooks + tools config",
+  "tools": [
+    "bash",
+    "edit",
+    "read",
+    "glob",
+    "grep",
+    "ls",
+    "newFile",
+    "kill",
+    "diff"
+  ],
+  "permission": "maxAllow",
+  "telemetry": "off",
+  "promptTemplates": {}
+}

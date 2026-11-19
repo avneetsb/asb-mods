@@ -1,0 +1,5 @@
+{
+  "_comment": "Fragment from ~/.codex/ - hooks.json + session config",
+  "hookTargets": "~/.codex/hooks.json",
+  "toolAdapters": "auto-generated from shared-core/hooks/hooks.json"
+}

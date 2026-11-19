@@ -1,0 +1,64 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-11-19",
+  "note": "Consolidated cross-tool dependency resolution map",
+  "providers": {
+    "omlx": {
+      "base_url": "http://127.0.0.1:1234/v1",
+      "model": "Qwen3.8-Flash-Next-oQ4e-mtp",
+      "used_by": [
+        "pi",
+        "mnemosyne",
+        "graphify"
+      ],
+      "config_keys": {
+        "pi": "~/.pi/agent/settings.json:defaultProvider",
+        "mnemosyne": "~/.pi/agent/mcp-adapter.json:mnemosyne.MNEMOSYNE_LLM_BASE_URL",
+        "graphify": "~/.graphify/providers.json:base_url"
+      }
+    }
+  },
+  "tools": {
+    "pi-coding-agent": {
+      "brew": "pi-coding-agent",
+      "npm": "@earendil-works/pi-coding-agent",
+      "installed_via": "brew"
+    },
+    "rtk": {
+      "brew": "rtk",
+      "binary": "/opt/homebrew/bin/rtk",
+      "config": "~/.agents/config-backups/"
+    },
+    "mnemosyne": {
+      "npm": "mnemosyne-memory",
+      "service": true,
+      "port": 7437,
+      "model": "localllm-omlx/Qwen3.8-Flash-Next-oQ4e-mtp"
+    },
+    "codegraph": {
+      "npm": "@colbymchenry/codegraph",
+      "service": true,
+      "model": "omlx/Qwen3.8-Flash-Next-oQ4e-mtp"
+    },
+    "gitnexus": {
+      "cli": "gitnexus",
+      "path": "~/Library/pnpm/bin/gitnexus",
+      "version": "1.6.9"
+    },
+    "beads": {
+      "npm": "@abix5/pi-beads",
+      "command": "bd"
+    },
+    "kapitsa": {
+      "brew": "kapitsa",
+      "command": "kapitsa"
+    }
+  },
+  "shared_configs": {
+    "settings_schema": "shared-core/config/settings-schema.json",
+    "env_propagation": "shared-core/env/shell-env.sh",
+    "secrets_location": "~/.config/pi-setup/secrets.local.json",
+    "hooks_schema": "shared-core/hooks/hooks.json",
+    "brew_inventory": "shared-core/brew/formulae.csv"
+  }
+}

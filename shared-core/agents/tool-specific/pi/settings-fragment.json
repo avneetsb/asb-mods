@@ -1,0 +1,48 @@
+{
+  "_comment": "Fragment from ~/.pi/agent/settings.json - loaded by pi at startup",
+  "defaultProvider": "omlx",
+  "defaultModel": "Qwen3.8-Flash-Next-oQ4e-mtp",
+  "models": {},
+  "localllm": {},
+  "enabledModels": [],
+  "packages": [
+    "pi-subagents@latest",
+    "@dietrichgebert/ponytail@latest",
+    "pi-lens@latest",
+    "pi-browser-harness@latest",
+    "pi-advisor-flow@latest",
+    "@pi-unipi/notify@latest",
+    "pi-btw@latest",
+    "pi-system-one@latest",
+    "@abix5/pi-beads@latest",
+    "pi-loop-police@latest",
+    "gentle-engram"
+  ],
+  "extensions": [
+    "-builtin:mcp"
+  ],
+  "mcpAdapters": {
+    "servers": [
+      "chrome-devtools",
+      "mnemosyne",
+      "gitnexus",
+      "codegraph",
+      "headroom",
+      "obsidian-connect-readwrite"
+    ]
+  },
+  "compaction": {
+    "enabled": true,
+    "poolMaxTokens": 10000
+  },
+  "codemode": {
+    "maxOutputTokens": 10000
+  },
+  "terminal": {
+    "renderMode": "markdown"
+  },
+  "advisor": {
+    "alwaysOn": true,
+    "provider": "localllm-omlx/Qwen3.8-Flash-Next-oQ4e-mtp"
+  }
+}

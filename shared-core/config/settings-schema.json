@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PI Settings",
+  "description": "Unified settings schema asb-mods consolidates from pi, claude, codex, cursor configs",
+  "type": "object",
+  "properties": {
+    "defaultProvider": {
+      "type": "string",
+      "description": "LLM provider"
+    },
+    "defaultModel": {
+      "type": "string",
+      "description": "Default model"
+    },
+    "enabledModels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "localllm": {
+      "type": "object"
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "extensions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "compaction": {
+      "type": "object"
+    },
+    "codemode": {
+      "type": "object"
+    },
+    "terminal": {
+      "type": "object"
+    },
+    "modelOverrides": {
+      "type": "object"
+    },
+    "theme": {
+      "type": "string"
+    },
+    "npmPackages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

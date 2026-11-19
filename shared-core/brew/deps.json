@@ -1,0 +1,107 @@
+{
+  "parent-tool": {
+    "direct": [],
+    "transitive": [
+      "dep-level"
+    ]
+  },
+  "node": {
+    "direct": [],
+    "transitive": [
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct"
+    ]
+  },
+  "python@3.15": {
+    "direct": [],
+    "transitive": [
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct"
+    ]
+  },
+  "graphifyy": {
+    "direct": [],
+    "transitive": [
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct",
+      "direct"
+    ]
+  },
+  "node+1": {
+    "direct": [],
+    "transitive": [
+      "transitive",
+      "transitive",
+      "transitive",
+      "transitive",
+      "transitive",
+      "transitive",
+      "transitive",
+      "transitive",
+      "transitive",
+      "transitive"
+    ]
+  },
+  "python@3.15+1": {
+    "direct": [],
+    "transitive": [
+      "transitive",
+      "transitive",
+      "transitive",
+      "transitive"
+    ]
+  }
+}
