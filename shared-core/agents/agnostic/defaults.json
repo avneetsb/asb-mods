@@ -1,0 +1,42 @@
+{
+  "_description": "Agent-agnostic defaults shared across pi, Claude Code, Codex, and Cursor",
+  "version": "1.0.0",
+  "code_search": {
+    "preferred_tool": "ripgrep (rg)",
+    "default_flags": [
+      "-i",
+      "--line-number",
+      "-C",
+      "2"
+    ],
+    "exclude_patterns": [
+      ".git/",
+      "node_modules/",
+      "__pycache__/",
+      ".next/",
+      ".build/"
+    ]
+  },
+  "commit_style": {
+    "conventional_commits": true,
+    "scope_format": "feat(scope): description",
+    "preferred_convention": "Conventional Commits"
+  },
+  "shell_envars": {
+    "env_file_source": "~/.zshenv (merged via shell-env.sh)",
+    "keys_to_propagate": [
+      "HF_TOKEN",
+      "SYSTEM_ONE_API_KEY",
+      "OMLX_API_KEY",
+      "GRAPHIFY_GEMINI_MODEL",
+      "OPENAI_API_KEY"
+    ],
+    "ca_bundle": "~/.config/ssl/ca-bundle.pem"
+  },
+  "package_management": {
+    "homebrew_primary": true,
+    "npm_secondary": true,
+    "brew_formulae_count": 273,
+    "brew_casks_count": 94
+  }
+}

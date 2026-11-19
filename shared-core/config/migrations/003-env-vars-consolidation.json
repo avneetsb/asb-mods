@@ -1,0 +1,12 @@
+{
+  "id": "003",
+  "name": "env-vars-consolidation",
+  "from_tool": "multiple",
+  "to_tool": "shared",
+  "steps": [
+    "Identify env vars in ~/.zshrc, ~/.zprofile, ~/.bash_profile, ~/.bashrc",
+    "Consolidate into shared-core/env/secrets.env.template",
+    "Source from each shell's profile",
+    "Verify CA bundle for Homebrew/tls access"
+  ]
+}

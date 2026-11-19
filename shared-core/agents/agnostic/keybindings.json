@@ -1,0 +1,32 @@
+{
+  "_description": "Key bindings and editor shortcuts unified across agents",
+  "common_shortcuts": {
+    "copy_current_file_path": {
+      "mac": "\u2318\u21e7P \u2192 Path to clipboard",
+      "windows": "Ctrl+Shift+P \u2192 Path to clipboard"
+    },
+    "toggle_command_palette": {
+      "mac": "\u2318P",
+      "windows": "Ctrl+P"
+    },
+    "go_to_definition": {
+      "mac": "\u2318Click",
+      "windows": "Ctrl+Click"
+    },
+    "find_in_files": {
+      "mac": "\u2318\u21e7F",
+      "windows": "Ctrl+Shift+F"
+    },
+    "terminal_new_tab": {
+      "mac": "\u2318T",
+      "windows": "Ctrl+T"
+    }
+  },
+  "mcp_tool_access": {
+    "description": "MCP tool invocation syntax varies by agent",
+    "pi": "Direct function call (tools.bash, tools.read, etc.)",
+    "claude_code": "XML-style tags <bash>, <read>",
+    "codex": "Function calls via adapter",
+    "cursor": "Native command palette + function execution"
+  }
+}

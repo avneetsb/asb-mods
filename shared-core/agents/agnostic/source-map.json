@@ -1,0 +1,41 @@
+{
+  "_description": "Source of truth for each agent's configuration files",
+  "pi": {
+    "main_config": "~/.pi/agent/settings.json",
+    "mcp_config": "~/.pi/agent/mcp-adapter.json",
+    "model_pin": "~/.pi/agent/advisor.json",
+    "skills": [
+      "~/.agents/skills/",
+      "npm packages under ~/.pi/agent/npm/node_modules/"
+    ],
+    "extensions": "~/.pi/agent/settings.json \u2192 extensions array",
+    "packages": "~/.pi/agent/settings.json \u2192 packages array",
+    "models": "~/.pi/agent/models.json",
+    "claude_md": "~/.claude/CLAUDE.md"
+  },
+  "claude_code": {
+    "main_config": "~/.claude/settings.json",
+    "hooks": "~/.claude/hooks.json",
+    "plugins": [
+      "~/.claude/plugins/cache/",
+      "~/.claude/plugins/manual/"
+    ],
+    "skills": "~/.claude/skills/",
+    "claude_md": "~/.claude/CLAUDE.md"
+  },
+  "codex": {
+    "hooks": "~/.codex/hooks.json",
+    "skills": "~/.codex/skills/",
+    "extensions": "codex extension system (auto)"
+  },
+  "cursor": {
+    "cli_config": "~/.cursor/cli-config.json",
+    "mcp": "~/.cursor/mcp.json",
+    "skills": [
+      "~/.cursor/skills/",
+      "~/.cursor/skills-cursor/"
+    ],
+    "extensions": "~/.cursor/extensions/",
+    "argv": "~/.cursor/argv.json"
+  }
+}

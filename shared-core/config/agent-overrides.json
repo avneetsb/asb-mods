@@ -1,0 +1,105 @@
+{
+  "_description": "Per-agent configuration overrides that differ from shared defaults",
+  "version": "1.0.0",
+  "agents": {
+    "pi": {
+      "model_provider": "localllm-omlx",
+      "model_id": "Qwen3.8-Flash-Next-oQ4e-mtp",
+      "thinking_enabled": true,
+      "mcp_adapters": "~/.pi/agent/mcp-adapter.json",
+      "memory_stack": [
+        "engram",
+        "pi-vcc",
+        "mnemosyne"
+      ],
+      "notification_platforms": [
+        "native",
+        "gotify",
+        "telegram",
+        "ntfy"
+      ],
+      "extensions": [
+        "pi-lens",
+        "pi-subagents",
+        "pi-goal-x",
+        "pi-btw",
+        "pi-browser-harness",
+        "pi-permission-modes",
+        "pi-hashline-edit-pro",
+        "pi-rtk-optimizer",
+        "pi-advisor-flow",
+        "@abix5/pi-beads",
+        "pi-animations",
+        "@sting8k/pi-vcc",
+        "@janvitos/pi-better-prompt",
+        "@narumitw/pi-stamp",
+        "@buyong/pi-codex-computer-use"
+      ],
+      "overrides": {
+        "defaultProvider": "localllm-omlx",
+        "toolCallDefaults": {
+          "maxTokens": null,
+          "timeout": null
+        },
+        "promptOverwrite": null
+      }
+    },
+    "claude_code": {
+      "model": "opus",
+      "api_key_helper": "npx --offline @internal-scope/claude-code-token get_token",
+      "base_url": "https://gateway.internal.example/llmgatewaysvc/v1/anthropic",
+      "hooks": {
+        "PreToolUse": "rtk hook claude + gitnexus + ccstatusline",
+        "UserPromptSubmit": "gitnexus + ccstatusline + hindsight",
+        "SessionStart": "verify-tools.sh + hindsight-sessionstart-hook",
+        "Stop": "paseo-hooks + hindsight-stop-hook"
+      },
+      "skills": [
+        "graphify",
+        "cavecrew"
+      ],
+      "permissions_deny": [
+        "ReportFindings",
+        "ScheduleWakeup",
+        "Workflow",
+        "WebFetch",
+        "WebSearch"
+      ]
+    },
+    "codex": {
+      "mcp_servers": {},
+      "hooks": {
+        "UserPromptSubmit": "paseo-hooks",
+        "PreToolUse": "paseo-hooks",
+        "PostToolUse": "paseo-hooks",
+        "PermissionRequest": "paseo-hooks",
+        "Stop": "paseo-hooks"
+      },
+      "permissions": {
+        "allow": [
+          "Shell(ls)"
+        ],
+        "deny": []
+      }
+    },
+    "cursor": {
+      "mcp_servers": {
+        "obsidian-connect-readwrite": "https://mcp.internal.example/mcp/groups/example-user/obsidian-connect-readwrite",
+        "gitnexus": "/Users/example/.local/bin/gitnexus mcp"
+      },
+      "editor": {
+        "vimMode": false
+      },
+      "display": {
+        "zenMode": true,
+        "showLineNumbers": false
+      },
+      "permissions": {
+        "allow": [
+          "Shell(ls)"
+        ],
+        "deny": []
+      }
+    }
+  }
+}

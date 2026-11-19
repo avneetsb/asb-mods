@@ -1,0 +1,20 @@
+{
+  "agent": "cursor",
+  "mcp_servers": {
+    "obsidian-connect-readwrite": "https://mcp.internal.example/mcp/groups/example-user/obsidian-connect-readwrite",
+    "gitnexus": "/Users/example/.local/bin/gitnexus mcp"
+  },
+  "editor": {
+    "vimMode": false
+  },
+  "display": {
+    "zenMode": true,
+    "showLineNumbers": false
+  },
+  "permissions": {
+    "allow": [
+      "Shell(ls)"
+    ],
+    "deny": []
+  }
+}

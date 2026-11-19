@@ -1,0 +1,52 @@
+{
+  "_description": "Migration guides for transitioning configurations between agents",
+  "version": "1.0.0",
+  "migrations": [
+    {
+      "id": "001",
+      "name": "pi-hooks-to-claude-hooks",
+      "from_tool": "pi",
+      "to_tool": "claude-code",
+      "steps": [
+        "Extract pi's rtk hook from shell-env.sh",
+        "Copy GitNexus hook path: ~/.claude/hooks/gitnexus/",
+        "Register ccstatusline via npx",
+        "Verify Hindsight integration via post-tool hooks"
+      ]
+    },
+    {
+      "id": "002",
+      "name": "claude-plugins-to-cursor-skills",
+      "from_tool": "claude-code",
+      "to_tool": "cursor",
+      "steps": [
+        "Map cavecrew/ponytail plugins to skills-cursor format",
+        "Ensure SKILL.md has proper trigger instructions",
+        "Update MCP server references (github issues \u2192 local paths)"
+      ]
+    },
+    {
+      "id": "003",
+      "name": "env-vars-consolidation",
+      "from_tool": "multiple",
+      "to_tool": "shared",
+      "steps": [
+        "Identify env vars in ~/.zshrc, ~/.zprofile, ~/.bash_profile, ~/.bashrc",
+        "Consolidate into shared-core/env/secrets.env.template",
+        "Source from each shell's profile",
+        "Verify CA bundle for Homebrew/tls access"
+      ]
+    },
+    {
+      "id": "004",
+      "name": "brew-inventory-deployment",
+      "from_tool": "homebrew",
+      "to_tool": "asb-mods-install.sh",
+      "steps": [
+        "Export brew list to formulae.csv",
+        "Tag type (formula vs cask)",
+        "Run install.sh to validate/install missing packages"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "001",
+  "name": "pi-hooks-to-claude-hooks",
+  "from_tool": "pi",
+  "to_tool": "claude-code",
+  "steps": [
+    "Extract pi's rtk hook from shell-env.sh",
+    "Copy GitNexus hook path: ~/.claude/hooks/gitnexus/",
+    "Register ccstatusline via npx",
+    "Verify Hindsight integration via post-tool hooks"
+  ]
+}

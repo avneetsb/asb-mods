@@ -1,0 +1,17 @@
+{
+  "agent": "codex",
+  "mcp_servers": {},
+  "hooks": {
+    "UserPromptSubmit": "paseo-hooks",
+    "PreToolUse": "paseo-hooks",
+    "PostToolUse": "paseo-hooks",
+    "PermissionRequest": "paseo-hooks",
+    "Stop": "paseo-hooks"
+  },
+  "permissions": {
+    "allow": [
+      "Shell(ls)"
+    ],
+    "deny": []
+  }
+}

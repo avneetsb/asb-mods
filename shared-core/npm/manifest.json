@@ -1,0 +1,77 @@
+{
+  "_description": "NPM packages installed globally for asb-mods ecosystem",
+  "version": "1.0.0",
+  "packages": [
+    {
+      "name": "pi-one-ui",
+      "version": "^0.0.x",
+      "purpose": "Single-file deployment utility"
+    },
+    {
+      "name": "pi-localllm-provider",
+      "version": "*",
+      "purpose": "Local LLM provider for pi"
+    },
+    {
+      "name": "pi-hashline-edit-pro",
+      "version": "*",
+      "purpose": "Enhanced hashline editing"
+    },
+    {
+      "name": "ccstatusline",
+      "version": "*",
+      "purpose": "Claude Code status line indicator"
+    },
+    {
+      "name": "pi-subagents",
+      "version": "*",
+      "purpose": "Subagent orchestration"
+    },
+    {
+      "name": "pi-advisor-flow",
+      "version": "*",
+      "purpose": "Advisor flow for pi"
+    },
+    {
+      "name": "@abix5/pi-beads",
+      "version": "*",
+      "purpose": "Task tracking (beads)"
+    },
+    {
+      "name": "pi-btw",
+      "version": "*",
+      "purpose": "Side conversations"
+    },
+    {
+      "name": "pi-animations",
+      "version": "*",
+      "purpose": "TUI animations"
+    },
+    {
+      "name": "@sting8k/pi-vcc",
+      "version": "*",
+      "purpose": "Session compaction"
+    },
+    {
+      "name": "@janvitos/pi-better-prompt",
+      "version": "*",
+      "purpose": "Better prompt UX"
+    },
+    {
+      "name": "pi-browser-harness",
+      "version": "*",
+      "purpose": "Browser automation"
+    },
+    {
+      "name": "@narumitw/pi-stamp",
+      "version": "*",
+      "purpose": "Timestamp utility"
+    },
+    {
+      "name": "@buyong/pi-codex-computer-use",
+      "version": "*",
+      "purpose": "Computer use for Codex"
+    }
+  ],
+  "global_install_command": "npm i -g pi-one-ui@latest pi-localllm-provider@latest pi-hashline-edit-pro@latest ccstatusline@latest pi-subagents@latest pi-advisor-flow@latest @abix5/pi-beads@latest pi-btw@latest pi-animations@latest @sting8k/pi-vcc@latest @janvitos/pi-better-prompt@latest pi-browser-harness@latest @narumitw/pi-stamp@latest @buyong/pi-codex-computer-use@latest"
+}

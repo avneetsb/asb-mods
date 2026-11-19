@@ -1,0 +1,23 @@
+{
+  "agent": "claude_code",
+  "model": "opus",
+  "api_key_helper": "npx --offline @internal-scope/claude-code-token get_token",
+  "base_url": "https://gateway.internal.example/llmgatewaysvc/v1/anthropic",
+  "hooks": {
+    "PreToolUse": "rtk hook claude + gitnexus + ccstatusline",
+    "UserPromptSubmit": "gitnexus + ccstatusline + hindsight",
+    "SessionStart": "verify-tools.sh + hindsight-sessionstart-hook",
+    "Stop": "paseo-hooks + hindsight-stop-hook"
+  },
+  "skills": [
+    "graphify",
+    "cavecrew"
+  ],
+  "permissions_deny": [
+    "ReportFindings",
+    "ScheduleWakeup",
+    "Workflow",
+    "WebFetch",
+    "WebSearch"
+  ]
+}

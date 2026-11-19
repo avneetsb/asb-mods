@@ -1,0 +1,11 @@
+{
+  "id": "002",
+  "name": "claude-plugins-to-cursor-skills",
+  "from_tool": "claude-code",
+  "to_tool": "cursor",
+  "steps": [
+    "Map cavecrew/ponytail plugins to skills-cursor format",
+    "Ensure SKILL.md has proper trigger instructions",
+    "Update MCP server references (github issues \u2192 local paths)"
+  ]
+}
