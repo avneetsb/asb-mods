@@ -1,0 +1,25 @@
+{
+  "name": "@asbmods/install",
+  "version": "0.1.0",
+  "description": "Consolidated personal tooling installer for pi, Claude Code, Codex, and Cursor",
+  "main": "installer/bin/install.js",
+  "bin": {
+    "asbmods": "installer/bin/install.js"
+  },
+  "scripts": {
+    "test": "node installer/test/install.test.js"
+  },
+  "keywords": [
+    "pi",
+    "claude-code",
+    "codex",
+    "cursor",
+    "tooling",
+    "hooks",
+    "installer"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

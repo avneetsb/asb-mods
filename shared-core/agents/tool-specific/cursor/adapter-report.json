@@ -1,0 +1,43 @@
+{
+  "tool": "cursor",
+  "base_dir": "/Users/example/.cursor",
+  "mcp_servers": [
+    "obsidian-connect-readwrite",
+    "gitnexus"
+  ],
+  "permissions_allow": [
+    "Shell(ls)"
+  ],
+  "editor": {
+    "vimMode": false
+  },
+  "skills_count": 23,
+  "skills_list": [
+    "cursor-blame",
+    "create-subagent",
+    "migrate-to-skills",
+    "deploy-with-vercel",
+    "shell",
+    "statusline",
+    "rename-chat",
+    "onboard",
+    "canvas",
+    "create-skill",
+    "create-rule",
+    "automate",
+    "sdk",
+    "review",
+    "review-bugbot",
+    "review-security",
+    "update-cursor-settings",
+    "update-cli-config",
+    "autopilot",
+    "split-to-prs",
+    "loop",
+    "create-hook",
+    "goal"
+  ],
+  "plugins": [
+    "local"
+  ]
+}
