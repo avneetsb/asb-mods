@@ -96,6 +96,16 @@ Second run reports `up-to-date` instead of `registered`, and zero deploy actions
 changes. Idempotence is asserted by the suite; a second run that keeps changing things is a bug worth
 reporting.
 
+**Can it install Node, Homebrew and the agent CLIs for me?**
+It reports them by default and installs them only when you say so. `asbmods doctor` is read-only and
+prints the exact fix command beside every gap; `bootstrap.sh` handles the one case the package cannot
+reach — a machine with no Node, where `install.js` cannot even start; `--install-prereqs` and
+`--install-agents` run those fixes, announcing each command before it runs, refusing under `--no-input`,
+and refusing when Homebrew's installer would need a terminal that is not attached. No third-party
+software is downloaded quietly: consent is the feature, which is why an unattended run gets a report
+instead of an install. See [Route 0](01-installation.md) and
+[Phase 0](03-phases.md#phase-0--prerequisites-libprereqsjs-libagentsjs).
+
 ## Payload questions
 
 **Why are 4 of the 11 artifact classes empty?**
@@ -111,7 +121,7 @@ refused precisely so the package never pretends to ship third-party code.
 It is a generated inventory with `generatedAt`, not hand-authored data. Diff it: byte and file-count
 movement is how payload drift becomes visible.
 
-**Why do the wiki pages state literal counts (46, 159, 367, 62)?**
+**Why do the wiki pages state literal counts (46, 159, 367, 74)?**
 Deliberately brittle. If payload or test count drifts, documentation has to change too, which is the
 cheapest available defence against "the docs quietly stopped being true".
 

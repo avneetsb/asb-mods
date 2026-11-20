@@ -16,6 +16,7 @@ The command is the first non-flag argument and defaults to `all`. Invocation for
 | `all` (default) | pre-flight → detect → archive → remove → install → npm → brew → env → secrets → hooks | removal still needs `--allow-destructive`; without it Phase 3 reports why it skipped |
 | `detect` | Phase 1 only, then exits | honours `--json`; skips pre-flight (it is pure read) |
 | `status` | verification only, then exits | never mutates; honours `--json` |
+| `doctor` | Phase 0 probe only, then exits | read-only: node, npm, git, Xcode CLT, Homebrew and each agent CLI, each missing row printing its own fix command. `--json` emits `{ ok, rows }`. Exits **1** when anything is missing, which is how CI gates on it |
 | `reset` | restore from a removal report, then exits | applies immediately; `--report=<name>` selects the report |
 | `archive` | detect → archive | |
 | `remove` | detect → remove | refuses without `--allow-destructive` **and** a verified archive |
@@ -44,7 +45,9 @@ The command is the first non-flag argument and defaults to `all`. Invocation for
 | `--install-brew` | | Actually runs `brew install` for missing rows (default is plan-only) | `lib/brew.js` |
 | `--limit=<n>` | | Caps brew installs in this run | `lib/brew.js` |
 | `--install-npm` | | Actually runs `npm i -g` for missing, resolvable manifest packages | `lib/npmpkgs.js` |
-| `--probe=<bool>` | | `false` skips the `npm view` reachability probe (fast, but then nothing is reported unavailable) | `lib/npmpkgs.js` |
+| `--install-prereqs` | | Opt-in: runs the fix commands `doctor` printed, in dependency order (Homebrew → Node → npm/git), announcing every command before it runs. Refuses under `--no-input` (exit 2), and refuses when Homebrew's installer would need a terminal that isn't there | `lib/prereqs.js` |
+| `--install-agents` | | Opt-in: installs absent agent CLIs through the routes in `shared-core/npm/agents.json`, then writes `reports/agents-<stamp>.json`. An install failure is a `--strict` failure | `lib/agents.js` |
+| `--probe=<bool>` | | `false` skips the `npm view` reachability probe (fast, but then nothing is reported unavailable) | `lib/npmpkgs.js`, `lib/agents.js` |
 | `--rotate-secrets` | | Re-prompts for variables that already have a value | `lib/secrets.js` |
 | `--json` | | `detect` prints the whole inventory; `status` prints `{ lines, state, archives }` | `install.js` |
 | `--report=<name>` | | For `reset`: which `reports/removal-<stamp>.json` to replay | `lib/restore.js` |
@@ -72,9 +75,9 @@ summary block at the end of a run is still what tells you what actually happened
 | Code | Meaning |
 | --- | --- |
 | `0` | Ran to completion — **including** a run where removal skipped, brew had missing rows, or some packages were unavailable (unless `--strict` was passed). Read the summary, don't infer from status |
-| `1` | Fatal: uncaught error (message only, or stack with `ASB_MODS_DEBUG=1`), or `shared-core` missing next to the installer |
-| `2` | Bad usage: unknown command, unrecognised flag, invalid `--scope` value, or `--agent` passed. Nothing was inspected or changed — the check runs before pre-flight |
-| `3` | `--strict` was passed and a phase soft-failed: archive incomplete, removal failures, install returned no actions, npm packages unresolvable, brew rows still missing after `--install-brew`, or secrets verification failed |
+| `1` | Fatal: uncaught error (message only, or stack with `ASB_MODS_DEBUG=1`), or `shared-core` missing next to the installer. `asbmods doctor` additionally exits `1` when a prerequisite is missing — for that command the code is the answer, not a crash |
+| `2` | Bad usage: unknown command, unrecognised flag, invalid `--scope` value, `--agent` passed, or `--install-prereqs` / `--install-agents` under `--no-input` (an unattended run cannot consent to installing third-party software). Nothing was inspected or changed — the check runs before pre-flight |
+| `3` | `--strict` was passed and a phase soft-failed: archive incomplete, removal failures, install returned no actions, npm packages unresolvable, brew rows still missing after `--install-brew`, a prerequisite install command failed, an agent CLI install failed, or secrets verification failed |
 
 ## Reading the output
 

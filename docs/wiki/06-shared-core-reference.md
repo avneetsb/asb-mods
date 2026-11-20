@@ -129,6 +129,41 @@ Registration mechanics, per-tool wiring and the pi extension adapter: [page 10](
 **`.npmrc`** — `registry=https://registry.npmjs.org/` plus a comment stating that no private-registry
 or scoped auth config ships in this package (that belongs in the developer's own `~/.npmrc`).
 
+## `npm/agents.json` — where the agent CLIs come from
+
+`manifest.json` lists what this package installs *for* the tools; `agents.json` lists the tools
+themselves — third-party CLIs that this package configures in depth and deliberately never ships. It
+drives `doctor`'s agent rows and everything `--install-agents` does.
+
+```json
+{ "tool": "pi", "bin": "pi", "probeCommand": "pi --version",
+  "routes": [ { "kind": "brew-formula", "package": "pi-coding-agent",
+                "command": ["brew", "install", "pi-coding-agent"], "note": "…" }, … ] }
+```
+
+| Field | Meaning |
+| --- | --- |
+| `tool` / `bin` | Display name, and the executable looked for on PATH. `doctor` prints a row per tool as `<tool> CLI` |
+| `probeCommand` | The human-visible way to check the install worked; not used to decide presence |
+| `routes[]` | Preference order. The first route whose probe succeeds is the one offered; if none resolve, the tool is reported `unresolvable` and nothing is attempted |
+| `routes[].kind` | `brew-formula`, `brew-cask`, `npm-global` or `native` — the four kinds `lib/agents.js` implements, enforced by a test so a new kind cannot ship silently unimplemented |
+| `routes[].command` | Run verbatim, with no shell interpretation except in `native`, where the vendor script needs one |
+| `routes[].note` | Why this route exists, in the report and in `doctor`'s fix line |
+
+| Tool | Routes, in order | Probe |
+| --- | --- | --- |
+| `pi` | `brew install pi-coding-agent`, then `npm i -g @earendil-works/pi-coding-agent` | `brew info --json formula`, `npm view` |
+| `claude` | `npm i -g @anthropic-ai/claude-code`, then Anthropic's `curl -fsSL https://claude.ai/install.sh \| bash` | `npm view`; the native route is reported **unprobed** because no availability check for a vendor script exists |
+| `codex` | `brew install --cask codex`, then `npm i -g @openai/codex` | `brew info --json cask`, `npm view` |
+
+Three policy lines live in the file itself, because they are the reason it exists: nothing here is
+vendored (no source copied into `shared-core/tooling/`, none of it a runtime dependency); routes are
+used only when the tool is absent and only under `--install-agents`, with the exact command announced
+first; and availability is probed rather than guessed, so a renamed formula or an unreachable registry
+is *reported*. Its `_verified` line records when the route names and versions were last checked against
+the public registry and Homebrew metadata — re-run those checks when you edit a route, the same duty as
+[brew inventory](#brew).
+
 ## `brew/`
 
 **`formulae.csv`** — **pipe-delimited**, columns `name|type|version|dependency-type|used-by`,

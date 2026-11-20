@@ -28,6 +28,8 @@ const brew = require('./lib/brew');
 const secretsmod = require('./lib/secrets');
 const npmpkgs = require('./lib/npmpkgs');
 const restore = require('./lib/restore');
+const prereqs = require('./lib/prereqs');
+const agentsmod = require('./lib/agents');
 
 const COLOR = process.stdout.isTTY && !process.env.NO_COLOR;
 const C = COLOR
@@ -57,6 +59,7 @@ Commands
   hooks      Register per-tool hooks: pi extension, Claude settings, Codex hooks.json
   npm        Report npm globals from shared-core/npm/manifest.json
   status     Show what is deployed and how it was verified
+  doctor     Read-only prerequisite check: Node, npm, git, Xcode CLT, Homebrew, agent CLIs
   reset      Restore removed artifacts from the latest archive
   help       This text
 
@@ -72,6 +75,8 @@ Flags
   --probe=<bool>         Set false to skip npm registry reachability probing
   --rotate-secrets       Re-prompt for secrets that are already set
   --json                 Emit machine-readable JSON for detect/status
+  --install-prereqs      Install missing prerequisites, announcing each command (needs a terminal)
+  --install-agents       Install absent agent CLIs, using shared-core/npm/agents.json routes
 
 Environment
   ASB_MODS_HOME   Target home directory (used by the test suite's fixture home)
@@ -113,6 +118,8 @@ function parseArgv(argv) {
     else if (a.startsWith('--report=')) out.flags.reportName = a.slice(9);
     else if (a === '--help' || a === '-h') out.flags.help = true;
     else if (a === '--strict') out.flags.strict = true;
+    else if (a === '--install-prereqs') out.flags.installPrereqs = true;
+    else if (a === '--install-agents') out.flags.installAgents = true;
     else if (!a.startsWith('-')) out.command = a;
     else out.flags.unknown.push(a);
   }
@@ -120,7 +127,7 @@ function parseArgv(argv) {
 }
 
 const KNOWN_COMMANDS = ['all', 'detect', 'archive', 'remove', 'install', 'npm', 'brew', 'env',
-  'secrets', 'hooks', 'status', 'reset', 'help'];
+  'secrets', 'hooks', 'status', 'reset', 'doctor', 'help'];
 const KNOWN_AGENTS = ['pi', 'claude', 'codex'];
 
 // Typos must not degrade into a silently different run. `asbmods instal` used to behave as
@@ -181,6 +188,14 @@ async function main() {
   if (command === 'help' || flags.help) { console.log(HELP); return; }
   validateUsage(command, flags);
 
+  // doctor is read-only and must not run pre-flight, detection or any phase: it answers
+  // "can this machine host the package?" and exits 1 when it cannot.
+  if (command === 'doctor') {
+    banner('Doctor — prerequisites (read-only)');
+    const verdict = prereqs.doctor(flags, log);
+    process.exit(verdict.ok ? 0 : 1);
+  }
+
   const results = {};
 
   // ---- detect ------------------------------------------------------------
@@ -217,6 +232,19 @@ async function main() {
   }
 
   preflight();
+
+  // ---- prerequisites / agent CLIs (opt-in, before detection so a newly installed tool is seen)
+  if (flags.installPrereqs || flags.installAgents) {
+    banner('Phase 0 — Prerequisites (--install-prereqs / --install-agents)');
+    if (flags.installPrereqs) {
+      results.prereqs = await prereqs.installPrereqs(flags, log, confirm);
+      if (results.prereqs.refused) { log('err', results.prereqs.refused); process.exit(2); }
+      if (results.prereqs.declined) log('warn', 'prerequisite install declined — continuing with what is present');
+    }
+    if (flags.installAgents) {
+      results.agents = agentsmod.install({ dryRun: !!flags.dryRun, probe: flags.probe }, log);
+    }
+  }
 
   const inv = runDetect();
   results.inventory = { removable: inv.summary.removableCount, protected: inv.summary.protectedCount };
@@ -277,7 +305,8 @@ async function main() {
       ? brew.install(opts, log)
       : brew.plan({ scope: flags.scope || 'all' });
     if (!flags.installBrew) {
-      log('info', `${results.brew.presentCount}/${results.brew.considered} present, ${results.brew.missingCount} missing (pass --install-brew to install)`);
+      if (results.brew.note) log('warn', results.brew.note);
+      else log('info', `${results.brew.presentCount}/${results.brew.considered} present, ${results.brew.missingCount} missing (pass --install-brew to install)`);
       if (results.brew.missing.length) log('dim', `missing: ${results.brew.missing.slice(0, 12).join(', ')}${results.brew.missing.length > 12 ? ' …' : ''}`);
     }
   }
@@ -342,6 +371,12 @@ function strictFindings(results, flags) {
   if (results.secrets && results.secrets.verified === false) {
     out.push('secrets: verification failed (content round-trip or mode 600)');
   }
+  if (results.prereqs && (results.prereqs.attempted || []).some((a) => a.ok === false)) {
+    out.push('a prerequisite install command failed (see the Prerequisites block)');
+  }
+  if (results.agents && (results.agents.failed || []).length) {
+    out.push(`agent CLI install failed for ${results.agents.failed.map((f) => f.tool).join(', ')}`);
+  }
   return out;
 }
 
@@ -351,6 +386,18 @@ function summarize(results) {
   if (results.remove) s.removed = results.remove.skipped ? `skipped (${results.remove.reason})` : results.remove.removedCount;
   if (results.install) s.installedActions = Array.isArray(results.install) ? results.install.length : 'dry-run';
   if (results.npm && results.npm.summary) s.npm = results.npm.summary;
+  if (results.prereqs) {
+    const p = results.prereqs;
+    if (p.refused) s.prereqs = `refused (${p.refused})`;
+    else if (p.declined) s.prereqs = 'declined';
+    else if ((p.installed || []).length) s.prereqs = `installed ${p.installed.join(', ')}`;
+    else if (p.dryRun) s.prereqs = `would install ${(p.planned || []).join(', ') || 'nothing'}`;
+    else s.prereqs = p.skipped || 'checked';
+  }
+  if (results.agents && results.agents.summary) {
+    s.agents = Object.assign({}, results.agents.summary,
+      { installed: (results.agents.installed || []).length, failed: (results.agents.failed || []).length });
+  }
   if (results.brew) s.brew = { present: results.brew.presentCount, missing: results.brew.missingCount };
   if (results.secrets) s.secretsVerified = results.secrets.verified !== undefined ? results.secrets.verified : 'dry-run';
   if (results.hooks) s.hooks = (results.hooks.results || []).map((r) => `${r.tool}:${r.changed ? 'registered' : r.skipped ? 'skipped' : 'up-to-date'}`);

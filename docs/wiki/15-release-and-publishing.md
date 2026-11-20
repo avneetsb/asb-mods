@@ -47,7 +47,7 @@ lives in your own `~/.npmrc`, never in the repository.
 ```bash
 cd ~/Dev/asb-mods
 git status --porcelain                     # must be empty
-npm test                                   # 62 green
+npm test                                   # 74 green
 node tools/vendor.js --dry-run             # payload unchanged or intentionally changed
 git diff --cached; git diff                # nothing naming internal systems or home paths
 
@@ -141,5 +141,5 @@ When you release, update in the same commit:
 | protection patterns | `08-protection-model.md` — the count and the groups are stated literally |
 | anything a user can trip over | `12-troubleshooting.md` (symptom table, and *Known gaps* if it stays unfixed) |
 
-Literal counts in these pages (34 protection patterns, 46 bundles, 159 files, 228 tarball files, 62 test
+Literal counts in these pages (34 protection patterns, 46 bundles, 159 files, 232 tarball files, 74 test
 cases) are deliberate: they turn silent payload drift into a documentation diff you have to notice.

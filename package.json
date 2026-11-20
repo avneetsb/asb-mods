@@ -1,6 +1,6 @@
 {
   "name": "@asbmods/install",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Self-contained installer that consolidates personal tooling for pi, Claude Code and Codex",
   "main": "./install.js",
   "bin": {

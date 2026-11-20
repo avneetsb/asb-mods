@@ -72,6 +72,18 @@ node --version                        # must be >= 18 (engines field)
 | an exclusion reason names an internal system | committed metadata leaked vocabulary | rewrite generically; keep the term list in gitignored `policy.local.json` |
 | a vendored extension can't find files after deploy | destination template lost `{{HOME}}` / `{{NAME}}` | restore the placeholders in `lib/tooling.js` and re-run `deployTooling()` |
 
+### Prerequisites and bootstrap
+
+| Symptom | Cause | What to do |
+| --- | --- | --- |
+| `asbmods doctor` exits `1` in a CI job | A prerequisite really is missing — that exit code **is** the answer, not a crash. Each row prints its own fix | Read the rows, or use `asbmods doctor --json` and gate on `.ok` |
+| `doctor` says Homebrew is missing, but `/opt/homebrew/bin/brew` exists | Installed and never exported, so nothing that calls `brew` by name can use it. Reported deliberately | Do what the row says: `eval "$(/opt/homebrew/bin/brew shellenv)"`, then put that line in your shell profile |
+| brew phase prints `Homebrew is not installed — no inventory row was considered` and lists nothing | Homebrew absent. Before this message existed, the phase claimed all 367 rows missing, which read like a broken manifest | Install Homebrew (`bootstrap.sh --via=brew`, or the command in `doctor`'s fix line), then re-run `asbmods brew` |
+| `--install-prereqs` exits `2` immediately | It was combined with `--no-input`. An unattended run cannot consent to installing third-party software, so refusing beats installing | Use plain `asbmods doctor` in CI, or run the install path interactively |
+| `Homebrew's installer needs an admin password and a terminal. Run this interactively` | `sudo` needs both; the script stops instead of dying inside them | Run it in a real terminal, or install Homebrew yourself and re-run `asbmods doctor` |
+| `--install-agents` reports `no install route resolved` for a tool | Every probe failed: Homebrew off PATH, or `npm view` could not reach the registry, or the formula/cask name moved | Fix the route it names in the detail line, or install that CLI yourself — the report at `reports/agents-<stamp>.json` carries each route's reason |
+| An announcement line in `bootstrap.sh` prints several hundred lines of someone else's script | A `$( … )` inside a double-quoted `say` string *ran* the command it meant to describe (this happened for real with the Homebrew installer) | Quote the announcement in single quotes. The suite pins it: `bootstrap.sh --dry-run announces the Homebrew route instead of running it` |
+
 ## Known gaps
 
 These are real limitations of the current code, not misuse. Each names the honest workaround and,

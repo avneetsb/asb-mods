@@ -26,6 +26,60 @@ Before any pipeline phase: Node major ≥ 18; `git --version` (its absence disab
 not archiving); `shared-core` present next to the installer — **missing it exits 1**, because there
 is no meaningful partial run; target home directory reported (flagged when `ASB_MODS_HOME` overrides it).
 
+## Phase 0 — prerequisites (`lib/prereqs.js`, `lib/agents.js`)
+
+Nothing in the package can run without Node, and until recently nothing in it could *get* Node
+either. Prerequisite gaps surfaced as a `hooks: skipped` line or, worse, as the brew phase claiming
+all 367 manifest rows were missing on a machine that had no Homebrew to begin with. Phase 0 closes
+both halves: reporting, and an opt-in installer that can be refused.
+
+**`asbmods doctor` is a command, not a phase.** It runs before pre-flight, inspects only the
+toolchain, and exits: `0` when every row is ok, `1` when one is missing (for CI, that code is the
+answer). `--json` prints `{ ok, rows: [{ name, ok, detail, fix }] }`.
+
+| Row | How it is judged | Fix printed when it is missing |
+| --- | --- | --- |
+| `node` | `process.versions.node` major ≥ 18 | `brew install node`, or `bootstrap.sh` on a machine with no Node at all |
+| `npm` | on PATH | ships with Node: `brew install node` |
+| `git` | on PATH | `brew install git`, or `xcode-select --install` |
+| Xcode CLT | `xcode-select -p` succeeds | `xcode-select --install` — Apple's dialog, so never unattended |
+| Homebrew | `brew` found **on PATH** | the official installer, or `eval "$(/opt/homebrew/bin/brew shellenv)"` when it is installed but was never exported |
+| `pi` / `claude` / `codex` CLI | each tool's `bin` on PATH, tools read from `shared-core/npm/agents.json` | `asbmods --install-agents`, with that tool's route list |
+
+"On PATH" is deliberate. `lib/brew.js` and every install route invoke `brew` by name, so a Homebrew
+sitting under `/opt/homebrew` that no shell profile exports cannot install anything: it is reported as
+a gap with a one-line fix rather than as a pass. With Homebrew genuinely absent, the brew phase now
+says
+
+```text
+[warn] Homebrew is not installed — no inventory row was considered. Install it first; asbmods doctor prints the command.
+```
+
+instead of listing 367 formulas it could never reach, exits `0`, and does not trip `--strict` — a
+missing prerequisite is not a failed install.
+
+**`--install-prereqs`** turns those fix strings into an ordered plan (Homebrew first, because every
+other fix runs through it), announces each command in full, and then asks. It refuses under
+`--no-input` with exit 2, because an unattended run cannot consent to installing third-party software;
+it refuses when Homebrew's installer would need a terminal that is not attached, rather than dying
+inside `sudo`; and under `--dry-run` it prints the plan and executes nothing. After a real run it
+re-probes and names what is still missing, and any command that exited non-zero is a `--strict`
+failure.
+
+**`--install-agents`** installs the agent CLIs from `shared-core/npm/agents.json`. A tool already on
+PATH is never probed, so an offline machine does not report its own working tools as broken. An
+absent tool is offered the first route whose probe succeeds — `brew info` for formula and cask routes,
+`npm view` for npm-global ones — while Anthropic's installer script has no probe at all, which the
+report states instead of assuming. Brew routes are refused while `brew` is off PATH; npm routes are
+reported unresolvable when the registry cannot answer. Routes, probe reasons, commands run and their
+exit codes all land in `<state>/reports/agents-<stamp>.json`, and a failed install is a `--strict`
+failure.
+
+Both flags run before detection, so a CLI installed here is visible to the hooks phase in the same
+run. The catalogue format is documented in
+[shared-core reference](06-shared-core-reference.md); the zero-Node entry point is
+[Route 0 of installation](01-installation.md).
+
 ## Phase 1 — detect (`lib/detect.js`)
 
 Inventories each agent, classifies every finding as removable or protected, and writes the inventory

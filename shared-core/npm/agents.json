@@ -1,0 +1,70 @@
+{
+  "_description": "Third-party agent CLIs this package configures but never ships. Each tool lists the install routes the installer may use under --install-agents, in preference order: the first route whose availability probe succeeds is the one offered.",
+  "version": "1.0",
+  "_policy": [
+    "Nothing here is vendored. No source from these packages is copied into shared-core/tooling/, and none is a runtime dependency of the installer.",
+    "Routes are used only when the tool is absent, only under --install-agents, and the exact command is announced before it runs.",
+    "Availability is probed (brew metadata for brew routes, `npm view` for npm routes) so an unreachable registry or a renamed formula is reported, not guessed."
+  ],
+  "_verified": "Route names and versions checked against the public registry and Homebrew metadata on 2026-11-20: pi-coding-agent 1.5.2 (formula), codex 0.171.0 (cask and npm), @anthropic-ai/claude-code 2.1.329 (npm).",
+  "agents": [
+    {
+      "tool": "pi",
+      "bin": "pi",
+      "probeCommand": "pi --version",
+      "routes": [
+        {
+          "kind": "brew-formula",
+          "package": "pi-coding-agent",
+          "command": ["brew", "install", "pi-coding-agent"],
+          "note": "Homebrew formula; this is the route the maintainer's own machine used"
+        },
+        {
+          "kind": "npm-global",
+          "package": "@earendil-works/pi-coding-agent",
+          "command": ["npm", "install", "-g", "@earendil-works/pi-coding-agent"],
+          "note": "same release channel, no Homebrew required"
+        }
+      ]
+    },
+    {
+      "tool": "claude",
+      "bin": "claude",
+      "probeCommand": "claude --version",
+      "routes": [
+        {
+          "kind": "npm-global",
+          "package": "@anthropic-ai/claude-code",
+          "command": ["npm", "install", "-g", "@anthropic-ai/claude-code"],
+          "note": "no admin rights needed beyond the npm prefix"
+        },
+        {
+          "kind": "native",
+          "package": "claude-code-installer",
+          "command": ["/bin/bash", "-c", "curl -fsSL https://claude.ai/install.sh | bash"],
+          "probe": "unprobed",
+          "note": "Anthropic's own installer (redirects to downloads.claude.ai); installs under ~/.local/share/claude and links ~/.local/bin/claude"
+        }
+      ]
+    },
+    {
+      "tool": "codex",
+      "bin": "codex",
+      "probeCommand": "codex --version",
+      "routes": [
+        {
+          "kind": "brew-cask",
+          "package": "codex",
+          "command": ["brew", "install", "--cask", "codex"],
+          "note": "Homebrew cask; the route the maintainer's own machine used"
+        },
+        {
+          "kind": "npm-global",
+          "package": "@openai/codex",
+          "command": ["npm", "install", "-g", "@openai/codex"],
+          "note": "same version as the cask"
+        }
+      ]
+    }
+  ]
+}

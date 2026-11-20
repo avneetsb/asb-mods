@@ -152,6 +152,41 @@ Flags: `--dry-run` (report only) and `--clean` (rewrite the bundle tree, keeping
 machine paths, no internal vocabulary — live in `shared-core/tooling/policy.json` (plus the
 gitignored term list). Full reference: [page 07](07-personal-tooling-vendoring.md).
 
+## `lib/prereqs.js` — Phase 0 probe, plan and installer
+
+Answers "can this machine host the package?" and, only when asked, fixes what it finds missing.
+
+| Export | Purpose |
+| --- | --- |
+| `probe()` | Reads the toolchain and returns `{ ok, rows }`. Rows: node (major ≥ `NODE_MIN_MAJOR`), npm, git, Xcode CLT, Homebrew, then one per agent CLI from the catalogue. Each failing row carries its own `fix` string |
+| `doctor(flags, log)` | Prints the table and returns the verdict; `flags.json` additionally dumps the raw rows. Never writes anything |
+| `installPrereqs(flags, log, confirm)` | Builds the ordered plan (Homebrew → Node → npm/git → CLT), announces every command, then runs it after consent. Returns `{ planned }` under `--dry-run`, `{ refused }` (handled as exit 2) when consent is impossible, `{ declined }` on a "no", and `{ attempted, installed, remaining }` after a real run |
+| `findOnPath(name)` | PATH lookup, absolute paths resolved through `X_OK`. Everything that asks "is it usable?" goes through this, so on-PATH means the same thing in every module |
+| `brewBin()` | Also looks in `/opt/homebrew/bin` and `/usr/local/bin`, because after Homebrew installs itself the current shell has not exported it yet. `adoptBrewPath()` prepends that directory to `process.env.PATH` so a single run can install Homebrew and then use it |
+| `cltStatus()` | `xcode-select -p`, with the fix (`xcode-select --install`) that no script can complete unattended |
+| `agentCatalog()` | Reads `shared-core/npm/agents.json`; a missing or malformed file becomes an extra failing row rather than a crash |
+
+Homebrew is judged **on PATH** by `probe()`, so an installation no shell profile exports shows up as a
+gap with `eval "$(<prefix>/bin/brew shellenv)"` as its fix. The distinction matters because
+`lib/brew.js` calls `brew` by name: a tool that cannot be invoked must not be reported as ready.
+
+## `lib/agents.js` — installing the agent CLIs
+
+Reads the route catalogue from `lib/prereqs.agentCatalog()` and offers install paths for tools this
+package configures but never ships.
+
+| Export | Purpose |
+| --- | --- |
+| `assess(opts, log)` | Per tool: `{ tool, bin, installedAt, probeCommand, routes }`. An installed tool is marked without probing, so an offline machine still reports its own working tools as present |
+| `probeRoute(route, opts)` | brew routes require `brew` on PATH and ask `brew info`; npm routes ask `npm view` unless `opts.probe === false`; `native` is reported as unprobed because no availability check exists for a vendor installer script |
+| `install(opts, log)` | Runs the first resolvable route for each absent tool after announcing it, then writes `<state>/reports/agents-<stamp>.json` and returns `{ rows, summary, installed, skipped, failed }` |
+| `brewInfo(kind, name)` | `brew info --json <kind> <name>` — availability and version without installing |
+
+`summary` counts `{ tools, present, absent, installable, unresolvable }`; the summary block at the end
+of a run carries the same numbers plus `installed` and `failed`. A failed install is what makes
+`--strict` exit 3 — the phase itself still exits 0, on the rule that a run which finished honestly is
+not a crash.
+
 ## Module dependency graph
 
 ```text
@@ -166,9 +201,14 @@ install.js
   ├── secrets→ paths, fsx
   ├── npmpkgs→ paths, fsx
   ├── brew   → paths, fsx, detect(parseFormulae)
-  └── restore→ paths, fsx, archive
+  ├── prereqs→ (fs, path, child_process only — a leaf by design: doctor must work on a machine
+  │           where nothing else in the package can run yet)
+  ├── restore→ paths, fsx, archive
+  └── agents  → paths, fsx, prereqs(catalogue + findOnPath), npmpkgs(resolvable)
 tools/vendor.js → lib/tooling.js, lib/fsx.js, lib/paths.js   (development only)
 ```
 
 No cycles: `paths` and `fsx` are leaves; every phase module depends on them and nothing else, except
-the two deliberate reuses (`remove` re-checks `detect.isProtected`, `brew` reuses `detect.parseFormulae`).
+the deliberate reuses (`remove` re-checks `detect.isProtected`, `brew` reuses `detect.parseFormulae`,
+`agents` reads the catalogue and PATH rules out of `prereqs` and registry reachability out of
+`npmpkgs`, so an install route is judged by the same probe the npm phase already used).

@@ -895,6 +895,177 @@ test('--strict exits 0 on a run with no soft failures', () => {
   assert.ok(!/--strict: .* soft failure/.test(r.out), 'a clean dry run reported soft failures');
 });
 
+section('Prerequisites — doctor / --install-prereqs / --install-agents (these tests install nothing)');
+
+// A PATH carrying Node but nothing else: the state of a fresh machine, reproducible here without
+// uninstalling anything from the host. Homebrew stays present on disk yet off PATH, which is itself
+// a configuration the tool must report as a gap — a brew that cannot be invoked installs nothing.
+function runPoor(args, opts = {}) {
+  const bin = path.join(ROOT, 'poor-bin');
+  fs.mkdirSync(bin, { recursive: true });
+  const link = (name, target) => {
+    fs.rmSync(path.join(bin, name), { force: true });
+    fs.symlinkSync(target, path.join(bin, name));
+  };
+  link('node', process.execPath);
+  for (const sys of ['git', 'xcode-select']) {
+    if (fs.existsSync(`/usr/bin/${sys}`)) link(sys, `/usr/bin/${sys}`);
+  }
+  const r = cp.spawnSync(process.execPath, [path.join(PKG, 'install.js'), ...args], {
+    cwd: PKG,
+    encoding: 'utf8',
+    input: opts.input || '',
+    timeout: 180000,
+    env: {
+      ...process.env, ASB_MODS_HOME: HOME, ASB_MODS_CORE: path.join(PKG, 'shared-core'),
+      XDG_CONFIG_HOME: XDG, NO_COLOR: '1', ASB_MODS_ASSUME_YES: '1', PATH: bin,
+    },
+  });
+  if (r.error) throw r.error;
+  return { status: r.status, out: `${r.stdout || ''}${r.stderr || ''}` };
+}
+const doctorJson = (out) => JSON.parse(out.slice(out.indexOf('{\n'), out.lastIndexOf('}') + 1));
+let poorDoc = null;
+const poorDoctor = () => (poorDoc = poorDoc || runPoor(['doctor', '--json']));
+
+test('doctor --json lists every prerequisite and its exit code matches the verdict', () => {
+  const r = run(['doctor', '--json']);
+  assert.ok([0, 1].includes(r.status), `expected 0 (complete) or 1 (gaps), got ${r.status}: ${r.out.slice(-250)}`);
+  const doc = doctorJson(r.out);
+  for (const name of ['node', 'npm', 'git', 'Xcode CLT', 'Homebrew', 'pi CLI', 'claude CLI', 'codex CLI']) {
+    assert.ok(doc.rows.some((x) => x.name === name), `no row for ${name}: ${doc.rows.map((x) => x.name)}`);
+  }
+  assert.strictEqual(doc.ok, doc.rows.every((x) => x.ok), 'verdict disagrees with its own rows');
+  assert.strictEqual(r.status, doc.ok ? 0 : 1, 'exit code disagrees with the verdict');
+  for (const row of doc.rows.filter((x) => !x.ok)) {
+    assert.ok(row.fix && row.fix.length > 5, `${row.name} is missing but prints no fix: ${JSON.stringify(row)}`);
+  }
+});
+
+test('doctor treats an off-PATH Homebrew as a gap and prints the shellenv fix', () => {
+  const doc = doctorJson(poorDoctor().out);
+  const brew = doc.rows.find((x) => x.name === 'Homebrew');
+  assert.strictEqual(brew.ok, false, 'a Homebrew that cannot be invoked must not be reported as ready');
+  assert.match(brew.fix, /shellenv|raw\.githubusercontent\.com\/Homebrew/);
+  const pi = doc.rows.find((x) => x.name === 'pi CLI');
+  assert.strictEqual(pi.ok, false, 'an absent agent CLI used to surface only as hooks: skipped');
+  assert.match(pi.fix, /--install-agents/);
+});
+
+test('brew phase says Homebrew is unusable instead of calling all 367 rows missing', () => {
+  const r = runPoor(['brew']);
+  assert.strictEqual(r.status, 0, `a missing prerequisite is not a run failure: ${r.out.slice(-250)}`);
+  assert.match(r.out, /not installed|not on PATH/i);
+  assert.ok(!/367 missing|0\/367 present/.test(r.out), 'the phase still claims every manifest row is missing');
+  const strict = runPoor(['brew', '--strict']);
+  assert.strictEqual(strict.status, 0, `--strict must not punish a missing prerequisite: ${strict.out.slice(-250)}`);
+});
+
+test('--install-prereqs refuses under --no-input rather than failing on a sudo prompt', () => {
+  const r = runPoor(['--install-prereqs', '--no-input', '--yes']);
+  assert.strictEqual(r.status, 2, `expected a usage refusal, got ${r.status}: ${r.out.slice(-250)}`);
+  assert.match(r.out, /refusing under --no-input/);
+});
+
+test('--install-prereqs --dry-run announces the plan and executes nothing', () => {
+  const r = runPoor(['--install-prereqs', '--dry-run']);
+  assert.strictEqual(r.status, 0, r.out.slice(-250));
+  const steps = r.out.split('\n').filter((l) => /: (will run|manual step)/.test(l));
+  assert.ok(steps.length > 0, `no announced steps:\n${r.out.slice(-400)}`);
+  assert.match(steps[0], /Homebrew/, 'Homebrew comes first: every other fix runs through it');
+  assert.ok(!steps.some((l) => /^\[..\] node:/ .test(l)), 'a present prerequisite must not be reinstalled');
+  assert.match(r.out, /--dry-run: no command executed/);
+});
+
+test('agents.json names the supported tools using only implemented route kinds', () => {
+  const cat = require(path.join(PKG, 'lib/prereqs')).agentCatalog();
+  assert.ok(!cat.error, cat.error);
+  assert.deepStrictEqual(cat.agents.map((a) => a.tool).sort(), ['claude', 'codex', 'pi']);
+  for (const a of cat.agents) {
+    assert.ok(Array.isArray(a.routes) && a.routes.length, `${a.tool} declares no install routes`);
+    for (const rt of a.routes) {
+      assert.ok(['brew-formula', 'brew-cask', 'npm-global', 'native'].includes(rt.kind), `${a.tool}: route kind ${rt.kind}`);
+    }
+  }
+});
+
+test('--install-agents dry-run reports each tool and starts no install', () => {
+  const dir = path.join(STATE, 'reports');
+  const before = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.startsWith('agents-')).length : 0;
+  const r = runPoor(['--install-agents', '--dry-run', '--yes']);
+  assert.strictEqual(r.status, 0, r.out.slice(-250));
+  const files = fs.readdirSync(dir).filter((f) => f.startsWith('agents-'));
+  assert.strictEqual(files.length, before + 1, `expected one new agents report, saw ${JSON.stringify(files)}`);
+  const rec = JSON.parse(fs.readFileSync(path.join(dir, files[files.length - 1]), 'utf8'));
+  assert.strictEqual(rec.rows.length, 3, JSON.stringify(rec.rows.map((r) => r.tool)));
+  for (const row of rec.rows) {
+    assert.ok(['pi', 'claude', 'codex'].includes(row.tool), JSON.stringify(row.tool));
+    assert.ok(Array.isArray(row.routes) && row.routes.length, `${row.tool}: report carries no routes`);
+    assert.ok(typeof row.installedAt === 'string' || row.installedAt === null, JSON.stringify(row.installedAt));
+  }
+  assert.strictEqual(rec.dryRun, true, 'report must record that nothing was installed');
+  assert.ok(!/installing via/.test(r.out), '--dry-run reported an install starting');
+  // With neither Homebrew nor npm reachable, a brew-backed tool must be reported, not attempted.
+  assert.match(r.out, /not on PATH|no install route resolved/);
+});
+
+section('bootstrap.sh — the only part of the repository that runs without Node');
+
+// install.js *is* Node, so a machine without it cannot be helped by the package. bootstrap.sh is
+// the seam, and these cases pin its two promises: it never installs unattended, and --dry-run is a
+// plan (exit 0), not a failure.
+function runBootstrap(args, { withNode = true } = {}) {
+  const nobin = path.join(ROOT, 'nobin');
+  fs.mkdirSync(nobin, { recursive: true });
+  fs.rmSync(path.join(nobin, 'git'), { force: true });
+  if (fs.existsSync('/usr/bin/git')) fs.symlinkSync('/usr/bin/git', path.join(nobin, 'git'));
+  const r = cp.spawnSync('/bin/bash', [path.join(PKG, 'bootstrap.sh'), ...args], {
+    cwd: PKG,
+    encoding: 'utf8',
+    input: '',
+    timeout: 120000,
+    // Nothing from the developer's PATH leaks in: no node, no Homebrew, no /opt/homebrew.
+    env: withNode ? { ...process.env } : { PATH: `${nobin}:/usr/bin:/bin`, HOME, TMPDIR: os.tmpdir() },
+  });
+  if (r.error) throw r.error;
+  return { status: r.status, out: `${r.stdout || ''}${r.stderr || ''}` };
+}
+
+test('bootstrap.sh --help lists the routes and changes nothing', () => {
+  const r = runBootstrap(['--help']);
+  assert.strictEqual(r.status, 0, r.out.slice(-300));
+  assert.match(r.out, /Usage: bootstrap\.sh/);
+  for (const flag of ['--dry-run', '--via=brew', '--via=nvm', '--via=none']) assert.ok(r.out.includes(flag), `help omits ${flag}`);
+});
+
+test('bootstrap.sh leaves a machine that already has Node alone', () => {
+  const r = runBootstrap(['--via=none']);
+  assert.strictEqual(r.status, 0, r.out.slice(-300));
+  assert.match(r.out, /already satisfies/);
+});
+
+test('a Node-less machine told --via=none is diagnosed, not installed on', () => {
+  const r = runBootstrap(['--via=none'], { withNode: false });
+  assert.strictEqual(r.status, 1, `missing Node with installing forbidden is a failure: ${r.out.slice(-300)}`);
+  assert.match(r.out, /forbids installing it/);
+  assert.match(r.out, /manual routes/);
+});
+
+test('bootstrap.sh --dry-run announces the Homebrew route instead of running it', () => {
+  const r = runBootstrap(['--via=brew', '--dry-run', '--yes'], { withNode: false });
+  assert.strictEqual(r.status, 0, `a plan is not a failure: ${r.out.slice(-300)}`);
+  assert.match(r.out, /curl -fsSL .*Homebrew\/install/);
+  assert.match(r.out, /brew install node/);
+  assert.ok(!/STUB|installed Homebrew/.test(r.out), '--dry-run performed an install');
+});
+
+test('bootstrap.sh refuses to install where no one is there to answer for it', () => {
+  const r = runBootstrap(['--via=nvm'], { withNode: false });
+  assert.strictEqual(r.status, 1, r.out.slice(-300));
+  assert.match(r.out, /refusing to install unattended/);
+  assert.ok(!fs.existsSync(path.join(HOME, '.nvm')), 'an unattended run created ~/.nvm');
+});
+
 console.log(`\n${passed} passed, ${failures.length} failed`);
 if (failures.length) {
   console.log(`failed: ${failures.join(', ')}`);

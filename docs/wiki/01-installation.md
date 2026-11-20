@@ -72,6 +72,36 @@ git -C asb-mods remote -v             # origin → git@github.com:avneetsb/asb-m
 If pushes come back as the wrong identity, fix `user.email`/`user.name` in this repo's local config
 before you commit, and check `ssh -T git@github.com` for the account the key maps to.
 
+## Route 0 — the machine has nothing yet (`bootstrap.sh`)
+
+`install.js` *is* Node: on a machine without it, the package cannot start, so it cannot fix that
+either. `bootstrap.sh` is deliberately the only file in the repository that runs without Node, and it
+stops the moment Node works — everything after that belongs to `asbmods`.
+
+| Command | What it does |
+| --- | --- |
+| `./bootstrap.sh --dry-run` | Shows the route it would take, changes nothing, exits `0`. A plan is not a failure |
+| `./bootstrap.sh` | Auto route: Homebrew on macOS, nvm elsewhere. Every command is announced before it runs |
+| `./bootstrap.sh --via=brew` | Force Homebrew: installs Homebrew if absent, then `node`, then `git` if absent |
+| `./bootstrap.sh --via=nvm --yes` | Force nvm + Node LTS. No admin rights; works on macOS and Linux |
+| `./bootstrap.sh --via=none` | Diagnose only: platform, node, npm, git, Homebrew. Installs nothing, exits `1` if Node is missing |
+
+Two refusals are the point of the script rather than shortcomings. Homebrew's own installer needs
+your admin password **and** a terminal; with no TTY the script says
+`refusing to install unattended (pass --yes to accept)` and stops, instead of dying inside `sudo`
+halfway through a toolchain. And bootstrap never touches agent configuration, shell rc files or
+secrets — that is what the [phases](03-phases.md) are for, once Node exists.
+
+From a machine with no clone yet:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/avneetsb/asb-mods/HEAD/bootstrap.sh | bash -s -- --dry-run
+```
+
+Once Node works, `asbmods doctor` reports the remaining prerequisites and prints the fix command
+beside each gap; `--install-prereqs` and `--install-agents` are the opt-in installers for them
+([CLI reference](04-cli-reference.md#flags)).
+
 ## First run, in order
 
 ```bash

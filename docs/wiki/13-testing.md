@@ -2,8 +2,8 @@
 
 [← 12 Troubleshooting](12-troubleshooting.md) · [Home](Home.md) · Next: [14 — Contributing](14-contributing.md)
 
-One file, **62 test cases** across 12 sections, 906 lines: `test/install.test.js`. Run it with
-`npm test`; the verdict line at the end reads `62 passed, 0 failed`. No network dependency except the
+One file, **74 test cases** across 14 sections, 1,076 lines: `test/install.test.js`. Run it with
+`npm test`; the verdict line at the end reads `74 passed, 0 failed`. No network dependency except the
 npm registry probe, which the suite deliberately tolerates failing.
 
 ```bash
@@ -77,6 +77,14 @@ That is the strongest cheap guarantee in the suite: a dry run cannot mutate anyt
 | 17 source map and dependency map agree packaging contract | `source-map.json` vs the shipped payload do not disagree |
 | 18 brew phase installs formulae and casks right subcommand | `--cask` used for casks, rows (not names) drive install, interactive casks deferred, a report is written |
 | CLI usage guards | `--help`/`-h` print usage without running a phase; unknown command, unknown flag, bad `--scope` and `--agent` all exit 2 and write no state; `--strict` exits 0 on a clean run |
+| Prerequisites — doctor / `--install-prereqs` / `--install-agents` | every row exists and each gap carries a fix; `doctor`'s exit code agrees with its own rows; off-PATH Homebrew is a gap with the `shellenv` fix; the brew phase no longer calls 367 rows missing and `--strict` does not punish it; `--install-prereqs` refuses under `--no-input` and announces without executing under `--dry-run`; `agents.json` uses only implemented route kinds; a dry-run agent pass writes its report and starts nothing |
+| `bootstrap.sh` | `--help` lists the routes; a machine with Node is left alone; a Node-less machine is diagnosed and `--via=none` exits 1; the Homebrew route is *announced*, never run (this pins a real bug: a double-quoted `$(curl …)` announcement executed the download it was describing); with no terminal to answer on, nothing is installed |
+
+These two sections run the installer under a **stripped PATH** — a fixture `bin/` holding a symlink to
+the test runner's own `node` plus `/usr/bin/git`, and nothing else. That is how a fresh machine gets
+tested on a fully provisioned one: Homebrew and the agent CLIs become absent by construction rather
+than by uninstalling them, and because Homebrew stays present-but-off-PATH it also proves the tool
+does not count a `brew` it cannot invoke as ready.
 
 ## Adding a test
 

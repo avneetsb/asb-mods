@@ -17,6 +17,31 @@ installer. (`@asbmods/install` is not published to the public registry yet —
 `npm view @asbmods/install` returns 404 — so the two supported routes are a checkout or
 a git URL. `npx @asbmods/install` will start working the day it is published.)
 
+### 0. The machine has no Node yet (`bootstrap.sh`)
+
+`install.js` *is* Node, so on a machine without it nothing inside the package can help.
+`bootstrap.sh` is deliberately the only part of the repository that runs without Node, and it
+stops as soon as Node works — everything after that belongs to `asbmods`.
+
+```bash
+./bootstrap.sh --dry-run          # show the route it would take, change nothing (exits 0)
+./bootstrap.sh                    # Homebrew route on macOS, nvm elsewhere; announces every command
+./bootstrap.sh --via=nvm --yes    # no admin rights: nvm + Node LTS
+./bootstrap.sh --via=none         # diagnose only, install nothing
+```
+
+Homebrew's own installer needs your admin password and a real terminal; where either is missing
+the script refuses rather than half-installing. From a fresh machine with no clone:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/avneetsb/asb-mods/HEAD/bootstrap.sh | bash -s -- --dry-run
+```
+
+Once Node exists, the remaining gaps are `asbmods`' business: `asbmods doctor` prints a
+read-only table (node, npm, git, Xcode CLT, Homebrew, and each agent CLI) where every missing row
+shows the exact fix command; `--install-prereqs` and `--install-agents` run those fixes, both
+opt-in and both refusing under `--no-input`.
+
 ### 1. From a checkout (recommended — you keep the archive tags locally)
 
 ```bash
@@ -57,6 +82,7 @@ Both were verified against this repo (`npm view git+ssh://git@github.com/avneets
 ### First run, in order
 
 ```bash
+asbmods doctor                   # read-only prerequisites: node, npm, git, Xcode CLT, Homebrew, pi/claude/codex
 asbmods --dry-run                # phase plan: check "removable: N" and "protected: M"
 asbmods status                   # detection detail + what is already deployed and verified
 asbmods --allow-destructive      # archive → remove → install → env/secrets → hooks
@@ -75,6 +101,7 @@ npx temp dir all behave identically. There is no hardcoded checkout location.
 
 | # | Phase | What it does |
 | --- | --- | --- |
+| 0 | **prerequisites** | `asbmods doctor` reports node, npm, git, Xcode CLT, Homebrew and each agent CLI; every missing row prints its exact fix command. `--install-prereqs` / `--install-agents` run those fixes (opt-in, announced first, refused under `--no-input`) |
 | 1 | **detect** | Inventories `~/.pi`, `~/.claude`, `~/.codex` plus `~/.agents` and the shell rc files; classifies each artifact removable vs protected; writes a JSON inventory |
 | 2 | **archive** | Copies each agent directory, `~/.agents` and the rc files to `~/.config/asb-mods/backups/<stamp>/`, **verifies** the file counts, then tags the package repo `asb-backup-<stamp>` |
 | 3 | **remove** | Deletes exactly the artifacts detection listed. Requires `--allow-destructive` plus confirmation, and refuses to run before a verified archive exists |
@@ -86,16 +113,19 @@ npx temp dir all behave identically. There is no hardcoded checkout location.
 | 7 | **hooks** | Registers the shared hook definitions with all three tools: a generated pi extension, `~/.claude/settings.json` hooks, and `~/.codex/hooks.json` |
 
 Each phase also runs standalone: `asbmods detect|archive|remove|install|npm|brew|env|secrets|hooks`,
-plus `status` (what is deployed, verified) and `reset` (restore what removal took).
+plus `doctor` (the prerequisite table above; exits `1` when something is missing so CI can gate on
+it), `status` (what is deployed and verified) and `reset` (restore what removal took).
 
 ### Flags
 
 `--dry-run` · `--yes` · `--allow-destructive` · `--no-input` (CI) · `--scope=required|all` ·
-`--install-brew` · `--limit=N` · `--install-npm` · `--probe=false` · `--rotate-secrets` ·
-`--json` · `--report=<name>` · `--strict` · `--help` / `-h`
+`--install-brew` · `--limit=N` · `--install-npm` · `--install-prereqs` · `--install-agents` ·
+`--probe=false` · `--rotate-secrets` · `--json` · `--report=<name>` · `--strict` · `--help` / `-h`
 
 Exit codes: `0` ran to completion (a skipped removal or missing brew rows is not an error), `1` fatal,
 `2` bad usage — an unknown command or flag is refused, not ignored — `3` `--strict` plus a soft failure.
+`asbmods doctor` is the exception: it exits `1` whenever a prerequisite is missing, which is how a
+CI job gates on it.
 
 Environment overrides: `ASB_MODS_HOME` (target home) and `ASB_MODS_CORE` (source of truth), which
 the functional test suite uses to run the whole destructive flow against a throwaway home.
