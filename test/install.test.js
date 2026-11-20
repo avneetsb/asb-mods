@@ -732,6 +732,78 @@ section('17 source map and dependency map agree with the packaging contract');
     assert.ok(/asb-mods\/env\/secrets\.env/.test(text), 'secrets_location does not name the deployed secrets file');
   });
 }
+
+// ── 18. phase 4 really installs casks AS casks (a fake brew records every argv)
+section('18 brew phase installs formulae and casks with the right subcommand');
+{
+  const fx = fs.mkdtempSync(path.join(os.tmpdir(), 'asbmods-brew-'));
+  const bin = path.join(fx, 'bin');
+  const argvLog = path.join(fx, 'argv.log');
+  fs.mkdirSync(bin, { recursive: true });
+  fs.writeFileSync(path.join(bin, 'brew'), [
+    '#!/bin/sh',
+    `if [ "$1" = "--version" ]; then echo "brew 9.9.9-fake"; exit 0; fi`,
+    `if [ "$1" = "list" ]; then exit 0; fi`, // nothing installed: everything is missing
+    `printf '%s\\n' "$*" >> ${JSON.stringify(argvLog)}`,
+    'exit 0',
+  ].join('\n'));
+  fs.chmodSync(path.join(bin, 'brew'), 0o755);
+
+  const env = {
+    ...process.env,
+    ASB_MODS_HOME: path.join(fx, 'home'),
+    XDG_CONFIG_HOME: path.join(fx, 'xdg'),
+    PATH: `${bin}:/usr/bin:/bin`,
+  };
+  const r = cp.spawnSync(process.execPath, [path.join(PKG, 'install.js'), 'brew', '--yes', '--install-brew'],
+    { env, encoding: 'utf8', timeout: 300000 });
+  const argv = fs.existsSync(argvLog) ? fs.readFileSync(argvLog, 'utf8').trim().split('\n').filter(Boolean) : [];
+  // Parse the inventory with production's own parser: names can be both a formula and
+  // a cask, so a naive column read disagrees with what the installer actually sees.
+  const { parseFormulae } = require(path.join(PKG, 'lib/detect.js'));
+  const rows = parseFormulae(path.join(PKG, 'shared-core/brew/formulae.csv'));
+  const caskNames = new Set(rows.filter((r) => r.type === 'cask').map((r) => r.name));
+  const formulaNames = new Set(rows.filter((r) => r.type === 'formula').map((r) => r.name));
+  const firstCask = [...caskNames].find((n) => !/^docker|^virtualbox/i.test(n));
+  const firstFormula = [...formulaNames][0];
+  test(`brew: every one of the ${rows.length} inventory rows is considered`, () => {
+    assert.ok(r.status === 0, `brew phase failed: ${(r.stdout || '').slice(-400)}${(r.stderr || '').slice(-200)}`);
+    assert.ok(argv.length > 100, `fake brew only saw ${argv.length} installs — the CSV was not consulted`);
+  });
+
+  test('brew: casks go through `install --cask`, formulae through plain install', () => {
+    const casks = argv.filter((l) => l.startsWith('install --cask '));
+    const formulae = argv.filter((l) => /^install \S+$/.test(l));
+    // Strict: every cask in the inventory must arrive with --cask. A name that exists as
+    // both a formula and a cask (1password does) used to resolve to the formula row.
+    const wrongCasks = [...caskNames].filter((n) => !casks.includes(`install --cask ${n}`));
+    assert.deepStrictEqual(wrongCasks.slice(0, 6), [],
+      `${wrongCasks.length} of ${caskNames.size} casks were installed without --cask: ${wrongCasks.slice(0, 6).join(', ')}`);
+    assert.ok(formulae.length > 0, 'no formula installs happened at all');
+    assert.ok(casks.includes(`install --cask ${firstCask}`), `cask ${firstCask} not installed as a cask`);
+    assert.ok(formulae.includes(`install ${firstFormula}`), `formula ${firstFormula} not installed as a formula`);
+  });
+
+  test('brew: casks needing interactive entitlement are deferred, never attempted', () => {
+    const attempted = new Set(argv.map((l) => l.replace(/^install( --cask)? /, '')));
+    for (const name of ['docker', 'docker-desktop', 'virtualbox']) {
+      assert.ok(!attempted.has(name), `${name} was installed without manual entitlement`);
+    }
+  });
+
+  test('brew: the phase writes a report of what it did', () => {
+    const reports = path.join(fx, 'xdg', 'asb-mods', 'reports');
+    const files = fs.existsSync(reports) ? fs.readdirSync(reports).filter((f) => f.startsWith('brew-')) : [];
+    assert.ok(files.length > 0, 'no brew report written');
+    const rec = JSON.parse(fs.readFileSync(path.join(reports, files[0]), 'utf8'));
+    assert.ok(Array.isArray(rec.installed) && rec.installed.length > 100,
+      `report undercounts installs: installed=${(rec.installed || []).length} `
+      + `considered=${rec.plan && rec.plan.considered} missing=${rec.plan && rec.plan.missingCount} present=${rec.plan && rec.plan.presentCount}`);
+    assert.deepStrictEqual(rec.failed, [], `fake brew should not fail: ${JSON.stringify(rec.failed).slice(0, 200)}`);
+  });
+
+  fs.rmSync(fx, { recursive: true, force: true });
+}
 console.log(`\n${passed} passed, ${failures.length} failed`);
 if (failures.length) {
   console.log(`failed: ${failures.join(', ')}`);
