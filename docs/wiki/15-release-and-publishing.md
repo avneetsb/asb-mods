@@ -8,10 +8,10 @@
 | --- | --- | --- |
 | Version in `package.json` | `0.1.0` | `node -p "require('./package.json').version"` |
 | Git tag | `v0.1.0`, **annotated**; object `83819aa`, peeled commit `22ba077` | `git tag -l --format='%(refname:short) obj=%(objectname:short) commit=%(*objectname:short)'` |
-| `main` HEAD | `22ba077` — the tag points at current head | `git rev-parse --short HEAD` |
+| `main` HEAD | ahead of the tag: `v0.1.0` peels to `22ba077`, main has moved on since | `git rev-parse --short HEAD` and `git describe --tags` |
 | Public npm registry | **not published** — `E404` for `@asbmods/install` | `npm view @asbmods/install version` |
 | Worked install route today | `npx github:avneetsb/asb-mods#v0.1.0` or a clone | README install section |
-| Tarball shape | 222 files, `asbmods-install-0.1.0.tgz` | `npm pack --dry-run \| tail -5` |
+| Tarball shape | 228 files; 454.5 kB packed, 1.6 MB unpacked — `asbmods-install-0.1.0.tgz` | `npm pack --dry-run \| tail -5` |
 | Commit signing | none (`user.signingkey` unset) | `git log -1 --show-signature` |
 | CI / npm provenance | none — no workflow files, so no attestations | `ls .github/workflows 2>/dev/null` |
 
@@ -80,7 +80,7 @@ manual by design. If you publish:
 
 ```bash
 npm login --scope=@asbmods                  # the scope must be yours (npm org or your username)
-npm publish --dry-run --access public       # read the file list; 222 files is the baseline
+npm publish --dry-run --access public       # read the file list; 228 files is the baseline
 npm view @asbmods/install version           # sanity: still 404 here
 
 # 2FA accounts need an OTP or an automation bypass token:
@@ -141,5 +141,5 @@ When you release, update in the same commit:
 | protection patterns | `08-protection-model.md` — the count and the groups are stated literally |
 | anything a user can trip over | `12-troubleshooting.md` (symptom table, and *Known gaps* if it stays unfixed) |
 
-Literal counts in these pages (34 protection patterns, 46 bundles, 159 files, 222 tarball files, 33
+Literal counts in these pages (34 protection patterns, 46 bundles, 159 files, 228 tarball files, 33
 tests) are deliberate: they turn silent payload drift into a documentation diff you have to notice.

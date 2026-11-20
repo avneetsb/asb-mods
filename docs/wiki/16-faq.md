@@ -107,7 +107,7 @@ refused precisely so the package never pretends to ship third-party code.
 It is a generated inventory with `generatedAt`, not hand-authored data. Diff it: byte and file-count
 movement is how payload drift becomes visible.
 
-**Why do the wiki pages state literal counts (34, 46, 159, 222, 33)?**
+**Why do the wiki pages state literal counts (34, 46, 159, 228, 33)?**
 Deliberately brittle. If payload or test count drifts, documentation has to change too, which is the
 cheapest available defence against "the docs quietly stopped being true".
 
