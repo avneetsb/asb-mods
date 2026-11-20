@@ -1,31 +1,50 @@
 {
-  "_description": "Source of truth for each agent's configuration files",
+  "_description": "Source of truth for each agent's configuration files, as detection and packaging actually treat them. 'restored_by' names the classes in lib/tooling.js that vendor and redeploy each artifact, and test/install.test.js fails if this map and that contract drift.",
   "pi": {
     "main_config": "~/.pi/agent/settings.json",
     "mcp_config": "~/.pi/agent/mcp-adapter.json",
     "model_pin": "~/.pi/agent/advisor.json",
+    "instructions": "~/.pi/agent/AGENTS.md",
+    "extensions": "~/.pi/agent/extensions/ (loose .ts files and package directories), listed in settings.json -> extensions array",
+    "packages": "settings.json -> packages array; local packages live in ~/.agents/packages/<name>",
     "skills": [
       "~/.agents/skills/",
       "npm packages under ~/.pi/agent/npm/node_modules/"
     ],
-    "extensions": "~/.pi/agent/settings.json \u2192 extensions array",
-    "packages": "~/.pi/agent/settings.json \u2192 packages array",
+    "scripts": "~/.agents/scripts/",
     "models": "~/.pi/agent/models.json",
-    "claude_md": "~/.claude/CLAUDE.md"
+    "restored_by": ["piExtensions", "piPackages", "agentSkills", "agentScripts"]
   },
   "claude_code": {
     "main_config": "~/.claude/settings.json",
-    "hooks": "~/.claude/hooks.json",
+    "hooks": "~/.claude/settings.json -> hooks key; ~/.claude/hooks/ holds plugin-owned hook directories",
+    "agents": "~/.claude/agents/",
     "plugins": [
       "~/.claude/plugins/cache/",
       "~/.claude/plugins/manual/"
     ],
     "skills": "~/.claude/skills/",
-    "claude_md": "~/.claude/CLAUDE.md"
+    "instructions": "~/.claude/CLAUDE.md",
+    "restored_by": ["claudeSkills"],
+    "not_restored": {
+      "claudeAgents": "employer-internal agent definitions stay archived, not published",
+      "claudePlugins": "plugin installs and registries are third-party state, rebuilt by reinstalling the plugins",
+      "claudeHooks": "hook directories belong to third-party plugins; this package registers its own hooks from shared-core/hooks/hooks.json"
+    }
   },
   "codex": {
+    "main_config": "~/.codex/config.toml",
     "hooks": "~/.codex/hooks.json",
     "skills": "~/.codex/skills/",
-    "extensions": "codex extension system (auto)"
+    "instructions": "~/.codex/AGENTS.md",
+    "restored_by": ["codexSkills", "codexLooseFiles"]
+  },
+  "shared_state": {
+    "state_dir": "~/.config/asb-mods/",
+    "env_file": "~/.config/asb-mods/env/shell-env.sh",
+    "secrets": "~/.config/asb-mods/env/secrets.env (mode 600, never committed)",
+    "archives": "~/.config/asb-mods/backups/<timestamp>/",
+    "hooks_bundle": "shared-core/hooks/hooks.json",
+    "packaged_tooling": "shared-core/tooling/ (see shared-core/tooling/policy.json for what ships and why the rest does not)"
   }
 }

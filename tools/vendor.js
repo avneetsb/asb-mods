@@ -51,13 +51,16 @@ const MAX_FILE_BYTES = 1024 * 1024;
 const offenders = (text) => {
   const hits = [];
   if (text.includes(SCAN_HOME)) hits.push('homePath');
+  // *Any* macOS user-home path is machine-specific, not only this machine's $HOME.
+  if (/\/Users\/[A-Za-z0-9._-]+\//.test(text)) hits.push('userHomePath');
   const low = text.toLowerCase();
   for (const t of SCAN_TERMS) if (low.includes(t)) hits.push(t);
   return hits;
 };
 
 /** Never echo the matched vocabulary into a shipped file: report a category, not the terms. */
-const classify = (hits) => (hits.includes('homePath') ? 'an absolute author home path' : 'an employer-internal reference');
+const classify = (hits) => (hits.includes('homePath') || hits.includes('userHomePath')
+  ? 'a machine home path' : 'an employer-internal reference');
 
 const denied = (cls, name) => (POLICY.denyBundles || [])
   .find((d) => (d.cls === cls || d.cls === '*') && (d.name === '*' || d.name === name));
@@ -171,7 +174,9 @@ for (const [cls, c] of Object.entries(CLASSES)) {
       cls, name,
       bundle: path.relative(ROOT, bundleDir).split(path.sep).join('/'),
       layout: isDir ? 'dir' : c.layout,
-      dest: (isDir ? (c.destDir || `${c.dest}/{{NAME}}`) : (c.dest || c.destDir.replace(/\/\{\{NAME\}\}$/, ''))).replace('{{NAME}}', name),
+      dest: (isDir
+        ? (c.destDir || (/\{\{NAME\}\}/.test(c.dest || '') ? c.dest : `${c.dest}/{{NAME}}`))
+        : (c.dest || c.destDir.replace(/\/\{\{NAME\}\}$/, ''))).replace('{{NAME}}', name),
       fileCount: keep.length,
       bytes: keep.reduce((n, f) => n + fs.statSync(f.fp).size, 0),
     });

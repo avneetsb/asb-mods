@@ -2,6 +2,7 @@
   "_comment": "Vendoring scope policy for shared-core/tooling/. tools/vendor.js enforces it and records every exclusion in manifest.json; test/install.test.js re-checks the shipped tree against these same terms. The rule: this package is published, so it carries PERSONAL tooling only, and nothing that names machine paths or an employer's internal systems. Archived-on-machine is not the same as published: everything removed is still archived locally under ~/.config/asb-mods/backups/<stamp>/ regardless of this policy.",
   "personalOnly": true,
   "skipPathSegments": [
+    "examples",
     ".unipi",
     ".codex",
     "artifacts",

@@ -57,7 +57,7 @@
   "shared_configs": {
     "settings_schema": "shared-core/config/settings-schema.json",
     "env_propagation": "shared-core/env/shell-env.sh",
-    "secrets_location": "~/.config/pi-setup/secrets.local.json",
+    "secrets_location": "~/.config/asb-mods/env/secrets.env (mode 600, never committed)",
     "hooks_schema": "shared-core/hooks/hooks.json",
     "brew_inventory": "shared-core/brew/formulae.csv"
   }

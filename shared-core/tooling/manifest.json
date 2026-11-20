@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-20T09:24:31.366Z",
+  "generatedAt": "2026-11-20T09:59:34.488Z",
   "generator": "tools/vendor.js",
   "policy": "shared-core/tooling/policy.json",
   "note": "Regenerate with `node tools/vendor.js`. Dependency trees, caches, scratch, machine state and anything naming the author home path or employer internal systems are never vendored; see the exclusions array. npm globals and shared-core/brew/formulae.csv restore dependencies, and secrets are collected by the installer prompt rather than shipped.",
   "totals": {
     "bundles": 46,
-    "files": 160,
-    "bytes": 1240518,
+    "files": 159,
+    "bytes": 1236301,
     "droppedFiles": 0,
     "skippedProtected": 2,
     "exclusions": 14
@@ -18,7 +18,7 @@
     },
     "piPackages": {
       "bundles": 10,
-      "files": 81
+      "files": 80
     },
     "agentScripts": {
       "bundles": 5,
@@ -664,7 +664,7 @@
       "name": "async-agents-box-widget",
       "bundle": "shared-core/tooling/pi/packages/async-agents-box-widget",
       "layout": "dir",
-      "dest": "{{HOME}}/.agents/packages/async-agents-box-widget/{{NAME}}",
+      "dest": "{{HOME}}/.agents/packages/async-agents-box-widget",
       "fileCount": 8,
       "bytes": 43383
     },
@@ -673,7 +673,7 @@
       "name": "beads-box-widget",
       "bundle": "shared-core/tooling/pi/packages/beads-box-widget",
       "layout": "dir",
-      "dest": "{{HOME}}/.agents/packages/beads-box-widget/{{NAME}}",
+      "dest": "{{HOME}}/.agents/packages/beads-box-widget",
       "fileCount": 8,
       "bytes": 96231
     },
@@ -682,16 +682,16 @@
       "name": "lens-diagnostic-pane",
       "bundle": "shared-core/tooling/pi/packages/lens-diagnostic-pane",
       "layout": "dir",
-      "dest": "{{HOME}}/.agents/packages/lens-diagnostic-pane/{{NAME}}",
-      "fileCount": 5,
-      "bytes": 82553
+      "dest": "{{HOME}}/.agents/packages/lens-diagnostic-pane",
+      "fileCount": 4,
+      "bytes": 78336
     },
     {
       "cls": "piPackages",
       "name": "memory-recall-gate",
       "bundle": "shared-core/tooling/pi/packages/memory-recall-gate",
       "layout": "dir",
-      "dest": "{{HOME}}/.agents/packages/memory-recall-gate/{{NAME}}",
+      "dest": "{{HOME}}/.agents/packages/memory-recall-gate",
       "fileCount": 2,
       "bytes": 10003
     },
@@ -700,7 +700,7 @@
       "name": "memory-usage-gate",
       "bundle": "shared-core/tooling/pi/packages/memory-usage-gate",
       "layout": "dir",
-      "dest": "{{HOME}}/.agents/packages/memory-usage-gate/{{NAME}}",
+      "dest": "{{HOME}}/.agents/packages/memory-usage-gate",
       "fileCount": 4,
       "bytes": 38052
     },
@@ -709,7 +709,7 @@
       "name": "pi-thinking-steps-compat",
       "bundle": "shared-core/tooling/pi/packages/pi-thinking-steps-compat",
       "layout": "dir",
-      "dest": "{{HOME}}/.agents/packages/pi-thinking-steps-compat/{{NAME}}",
+      "dest": "{{HOME}}/.agents/packages/pi-thinking-steps-compat",
       "fileCount": 30,
       "bytes": 468452
     },
@@ -718,7 +718,7 @@
       "name": "subagent-sync-only",
       "bundle": "shared-core/tooling/pi/packages/subagent-sync-only",
       "layout": "dir",
-      "dest": "{{HOME}}/.agents/packages/subagent-sync-only/{{NAME}}",
+      "dest": "{{HOME}}/.agents/packages/subagent-sync-only",
       "fileCount": 5,
       "bytes": 12087
     },
@@ -727,7 +727,7 @@
       "name": "tool-surface-gate",
       "bundle": "shared-core/tooling/pi/packages/tool-surface-gate",
       "layout": "dir",
-      "dest": "{{HOME}}/.agents/packages/tool-surface-gate/{{NAME}}",
+      "dest": "{{HOME}}/.agents/packages/tool-surface-gate",
       "fileCount": 8,
       "bytes": 37683
     },
@@ -736,7 +736,7 @@
       "name": "widget-fold-on-click",
       "bundle": "shared-core/tooling/pi/packages/widget-fold-on-click",
       "layout": "dir",
-      "dest": "{{HOME}}/.agents/packages/widget-fold-on-click/{{NAME}}",
+      "dest": "{{HOME}}/.agents/packages/widget-fold-on-click",
       "fileCount": 7,
       "bytes": 46745
     },
@@ -745,7 +745,7 @@
       "name": "working-line-rate-off",
       "bundle": "shared-core/tooling/pi/packages/working-line-rate-off",
       "layout": "dir",
-      "dest": "{{HOME}}/.agents/packages/working-line-rate-off/{{NAME}}",
+      "dest": "{{HOME}}/.agents/packages/working-line-rate-off",
       "fileCount": 4,
       "bytes": 22587
     }
