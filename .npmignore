@@ -1,0 +1,24 @@
+# Files excluded from the published tarball.
+#
+# npm silently falls back to .gitignore when this file is absent (npm warn
+# gitignore-fallback), which couples the published artifact to VCS state. The
+# publish-time ignore set is therefore stated explicitly here and mirrors
+# .gitignore. Keep the two in sync; `npm pack --dry-run` is the check.
+
+# Dependencies and local tooling state
+node_modules/
+.unipi/
+.engram/
+
+# Logs and OS noise
+*.log
+.DS_Store
+
+# Local archives and scratch indexes
+backups/
+asb-mods-*.tar.gz
+.org-index/
+
+# Machine-local vocabulary for the internal-term screen: the detection mechanism
+# ships (lib/tooling.js, tools/vendor.js, policy.json), the vocabulary does not.
+shared-core/tooling/policy.local.json
