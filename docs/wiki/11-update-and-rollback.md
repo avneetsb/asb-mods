@@ -95,9 +95,10 @@ git tag -l --sort=-creatordate          # what exists: v0.1.0 then v0.2.0 now
 git checkout v0.1.0 && asbmods install  # deploy the older payload over the newer one
 ```
 
-`v0.1.0` is an annotated tag whose peeled commit is `22ba077`, the current `main`. Deploying an older
-payload is expected to be safe because Phase 4 merges rather than replaces — but hooks and tooling
-classes added after that tag will linger until you either roll forward or run a removal you authorised.
+Both tags are annotated: `v0.2.0` (object `5fb2d0d`) peels to `4dba1c8`, the current `main`; `v0.1.0`
+(object `83819aa`) peels to `22ba077`. Deploying an older payload is expected to be safe because Phase 4
+merges rather than replaces — but hooks and tooling classes added after that tag will linger until you
+either roll forward or run a removal you authorised.
 
 **Order matters when several layers moved:** restore removals (1) → restore config files (2) →
 redeploy the payload you want (4). Redeploying first re-adds things a reset is about to overwrite,

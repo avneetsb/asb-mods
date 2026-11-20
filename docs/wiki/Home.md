@@ -55,7 +55,7 @@ and refuses anything outside the target home. `status` verifies the result, `res
 
 ## Numbers at a glance
 
-As of `v0.1.0` (2026-11-20). Re-run the command in the right-hand column; these figures move as
+As of `v0.2.0` (2026-11-20). Re-run the command in the right-hand column; these figures move as
 tooling is added, and a stale number in the docs is a bug (see [page 14](14-contributing.md)).
 
 | Figure | Value | Verify with |

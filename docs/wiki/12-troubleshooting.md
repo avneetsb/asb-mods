@@ -23,7 +23,7 @@ node --version                        # must be >= 18 (engines field)
 | `npm warn gitignore-fallback` while packing | `.npmignore` deleted or out of sync | restore it; publish-time ignore set is stated explicitly |
 | detection reports nothing under `~/.claude` | tool installed but never run, so no config dir exists | start the agent once; `hooks` then reports `up-to-date` instead of `skipped` |
 | a large install appears to hang listing one directory | a directory with huge numbers of children | by design: `CHILD_LIMIT = 400` per listing caps it — detection still finishes |
-| exit status 0 but something clearly didn't happen | success means "ran to completion", not "did everything" | read the **Summary** block / `asbmods status`; see *Not bugs* below |
+| exit status 0 but something clearly didn't happen | success means "ran to completion", not "did everything" | read the **Summary** block or `asbmods status`; automation should pass `--strict`, which turns those soft failures into exit 3. See *Not bugs* below |
 
 ### Removal and restore
 

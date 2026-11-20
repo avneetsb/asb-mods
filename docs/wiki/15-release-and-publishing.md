@@ -6,12 +6,12 @@
 
 | Fact | Value | How to re-check |
 | --- | --- | --- |
-| Version in `package.json` | `0.1.0` | `node -p "require('./package.json').version"` |
-| Git tag | `v0.1.0`, **annotated**; object `83819aa`, peeled commit `22ba077` | `git tag -l --format='%(refname:short) obj=%(objectname:short) commit=%(*objectname:short)'` |
-| `main` HEAD | ahead of the tag: `v0.1.0` peels to `22ba077`, main has moved on since | `git rev-parse --short HEAD` and `git describe --tags` |
+| Version in `package.json` | `0.2.0` | `node -p "require('./package.json').version"` |
+| Git tag | `v0.2.0` (**annotated**; object `5fb2d0d`, peeled commit `4dba1c8`) and `v0.1.0` (object `83819aa`, peeled commit `22ba077`) | `git tag -l --format='%(refname:short) obj=%(objectname:short) commit=%(*objectname:short)'` |
+| `main` HEAD | `4dba1c8` — exactly where `v0.2.0` peels, so `git describe --tags` prints `v0.2.0`; `v0.1.0` sits behind it at `22ba077` | `git rev-parse --short HEAD` and `git describe --tags` |
 | Public npm registry | **not published** — `E404` for `@asbmods/install` | `npm view @asbmods/install version` |
-| Worked install route today | `npx github:avneetsb/asb-mods#v0.1.0` or a clone | README install section |
-| Tarball shape | 228 files; 454.5 kB packed, 1.6 MB unpacked — `asbmods-install-0.1.0.tgz` | `npm pack --dry-run \| tail -5` |
+| Worked install route today | `npx github:avneetsb/asb-mods#v0.2.0` or a clone | README install section |
+| Tarball shape | 228 files; 457.3 kB packed, 1.7 MB unpacked — `asbmods-install-0.2.0.tgz`, shasum `35375afd586cf7a90cb69027228e8207e06b3933` | `npm pack --dry-run \| tail -5` |
 | Commit signing | none (`user.signingkey` unset) | `git log -1 --show-signature` |
 | CI / npm provenance | none — no workflow files, so no attestations | `ls .github/workflows 2>/dev/null` |
 
@@ -21,7 +21,7 @@ will hit it; if you publish, update that paragraph too.
 ## Package manifest, and why `.npmignore` matters here
 
 ```json
-{ "name": "@asbmods/install", "version": "0.1.0", "main": "./install.js",
+{ "name": "@asbmods/install", "version": "0.2.0", "main": "./install.js",
   "bin": { "asbmods": "./install.js" }, "scripts": { "test": "node test/install.test.js" },
   "license": "MIT", "engines": { "node": ">=18.0.0" } }
 ```
@@ -47,18 +47,18 @@ lives in your own `~/.npmrc`, never in the repository.
 ```bash
 cd ~/Dev/asb-mods
 git status --porcelain                     # must be empty
-npm test                                   # 33 green
+npm test                                   # 62 green
 node tools/vendor.js --dry-run             # payload unchanged or intentionally changed
 git diff --cached; git diff                # nothing naming internal systems or home paths
 
 # 1. bump the version (this is the only place the version lives)
-npm version 0.1.1 --no-git-tag-version     # edits package.json only; keeps control of the commit
+npm version 0.2.1 --no-git-tag-version     # edits package.json only; keeps control of the commit
 git add package.json shared-core/tooling/manifest.json 2>/dev/null
-git commit -m "chore(release): 0.1.1"
+git commit -m "chore(release): 0.2.1"
 
 # 2. annotate, then push branch and tag explicitly
-git tag -a v0.1.1 -m "asb-mods 0.1.1 — <what changed>"
-git push origin main && git push origin v0.1.1
+git tag -a v0.2.1 -m "asb-mods 0.2.1 — <what changed>"
+git push origin main && git push origin v0.2.1
 
 # 3. verify the tag actually landed on the remote
 git ls-remote --tags origin
@@ -68,7 +68,7 @@ Rules:
 
 - **annotated tags only** (`-a`) — lightweight tags lose the message and make `%(objectname)` audits
   ambiguous;
-- the tag must peel to the commit you intend as the release (`git cat-file -t v0.1.1` → `tag`);
+- the tag must peel to the commit you intend as the release (`git cat-file -t v0.2.1` → `tag`);
 - never move a published tag; cut the next patch version instead;
 - `npm version` without its default tagging (`--no-git-tag-version`) keeps the commit and tag as two
   deliberate steps, so you can inspect the diff between them.
@@ -105,7 +105,7 @@ Publishing does not remove the need for tags: pin by tag in docs and issue answe
 - **No npm provenance.** Attestations require a GitHub Actions publish step with OIDC; there are no
   workflow files in this repository. Users therefore trust the tarball by content, and `npm audit`
   has nothing to attest against.
-- Practical substitute: pin by tag (`npx github:avneetsb/asb-mods#v0.1.0`), and compare
+- Practical substitute: pin by tag (`npx github:avneetsb/asb-mods#v0.2.0`), and compare
   `npm pack --dry-run` file counts between releases to spot payload surprises.
 
 ## Rolling back a release
@@ -117,8 +117,8 @@ git checkout v0.1.0 && asbmods install          # older payload, additive merge
 npx github:avneetsb/asb-mods#v0.1.0 install     # same, without a checkout
 ```
 
-For a published version: within npm's unpublish window you may `npm unpublish @asbmods/install@0.1.1`;
-after that, `npm deprecate @asbmods/install@0.1.1 "use 0.1.2 — <reason>"` is the correct instrument.
+For a published version: within npm's unpublish window you may `npm unpublish @asbmods/install@0.2.1`;
+after that, `npm deprecate @asbmods/install@0.2.1 "use 0.2.2 — <reason>"` is the correct instrument.
 Deprecation does not break pinned installs, which is what you want on other people's machines.
 
 Then handle the machine state per [page 11](11-update-and-rollback.md): restore removals first, then
@@ -141,5 +141,5 @@ When you release, update in the same commit:
 | protection patterns | `08-protection-model.md` — the count and the groups are stated literally |
 | anything a user can trip over | `12-troubleshooting.md` (symptom table, and *Known gaps* if it stays unfixed) |
 
-Literal counts in these pages (34 protection patterns, 46 bundles, 159 files, 228 tarball files, 33
-tests) are deliberate: they turn silent payload drift into a documentation diff you have to notice.
+Literal counts in these pages (34 protection patterns, 46 bundles, 159 files, 228 tarball files, 62 test
+cases) are deliberate: they turn silent payload drift into a documentation diff you have to notice.
