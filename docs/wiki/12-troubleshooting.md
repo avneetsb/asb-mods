@@ -19,7 +19,7 @@ node --version                        # must be >= 18 (engines field)
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | `shared-core not found next to installer` (exit 1) | ran from a partial copy, or `ASB_MODS_CORE` points at something else | use a real clone, or unset `ASB_MODS_CORE` and retry |
-| `npx @asbmods/install` fails / 404 | the package is **not published to the public registry** yet | `npx github:avneetsb/asb-mods#v0.2.0` or a checkout |
+| `npx @asbmods/install` fails / 404 | the package is **not published to the public registry** yet | `npx github:avneetsb/asb-mods#v0.3.0` or a checkout |
 | `npm warn gitignore-fallback` while packing | `.npmignore` deleted or out of sync | restore it; publish-time ignore set is stated explicitly |
 | detection reports nothing under `~/.claude` | tool installed but never run, so no config dir exists | start the agent once; `hooks` then reports `up-to-date` instead of `skipped` |
 | a large install appears to hang listing one directory | a directory with huge numbers of children | by design: `CHILD_LIMIT = 400` per listing caps it — detection still finishes |

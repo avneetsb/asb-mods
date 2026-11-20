@@ -6,12 +6,12 @@
 
 | Fact | Value | How to re-check |
 | --- | --- | --- |
-| Version in `package.json` | `0.2.0` | `node -p "require('./package.json').version"` |
-| Git tag | `v0.2.0` (**annotated**; object `5fb2d0d`, peeled commit `4dba1c8`) and `v0.1.0` (object `83819aa`, peeled commit `22ba077`) | `git tag -l --format='%(refname:short) obj=%(objectname:short) commit=%(*objectname:short)'` |
-| `main` HEAD | `4dba1c8` — exactly where `v0.2.0` peels, so `git describe --tags` prints `v0.2.0`; `v0.1.0` sits behind it at `22ba077` | `git rev-parse --short HEAD` and `git describe --tags` |
+| Version in `package.json` | `0.3.0` | `node -p "require('./package.json').version"` |
+| Git tag | `v0.3.0` (**annotated**; object `61eb530`, peeled commit `fe03c92`), `v0.2.0` (object `5fb2d0d`, peeled commit `4dba1c8`) and `v0.1.0` (object `83819aa`, peeled commit `22ba077`) | `git tag -l --format='%(refname:short) obj=%(objectname:short) commit=%(*objectname:short)'` |
+| Release commit | `fe03c92` — exactly where `v0.3.0` peels, so on that commit `git describe --tags` prints `v0.3.0`. `main` may sit ahead of the tag with docs-only commits; `v0.2.0` sits behind it at `4dba1c8` | `git rev-parse --short HEAD`, `git describe --tags`, `git rev-list v0.3.0..main --count` |
 | Public npm registry | **not published** — `E404` for `@asbmods/install` | `npm view @asbmods/install version` |
-| Worked install route today | `npx github:avneetsb/asb-mods#v0.2.0` or a clone | README install section |
-| Tarball shape | 228 files; 457.3 kB packed, 1.7 MB unpacked — `asbmods-install-0.2.0.tgz`, shasum `35375afd586cf7a90cb69027228e8207e06b3933` | `npm pack --dry-run \| tail -5` |
+| Worked install route today | `npx github:avneetsb/asb-mods#v0.3.0` or a clone | README install section |
+| Tarball shape | 232 files; 477.1 kB packed, 1.7 MB unpacked — `asbmods-install-0.3.0.tgz`, shasum `f15329649bc98d2a77f22039705b71103a02441d` | `npm pack --dry-run \| tail -5` |
 | Commit signing | none (`user.signingkey` unset) | `git log -1 --show-signature` |
 | CI / npm provenance | none — no workflow files, so no attestations | `ls .github/workflows 2>/dev/null` |
 
@@ -21,7 +21,7 @@ will hit it; if you publish, update that paragraph too.
 ## Package manifest, and why `.npmignore` matters here
 
 ```json
-{ "name": "@asbmods/install", "version": "0.2.0", "main": "./install.js",
+{ "name": "@asbmods/install", "version": "0.3.0", "main": "./install.js",
   "bin": { "asbmods": "./install.js" }, "scripts": { "test": "node test/install.test.js" },
   "license": "MIT", "engines": { "node": ">=18.0.0" } }
 ```
@@ -105,7 +105,7 @@ Publishing does not remove the need for tags: pin by tag in docs and issue answe
 - **No npm provenance.** Attestations require a GitHub Actions publish step with OIDC; there are no
   workflow files in this repository. Users therefore trust the tarball by content, and `npm audit`
   has nothing to attest against.
-- Practical substitute: pin by tag (`npx github:avneetsb/asb-mods#v0.2.0`), and compare
+- Practical substitute: pin by tag (`npx github:avneetsb/asb-mods#v0.3.0`), and compare
   `npm pack --dry-run` file counts between releases to spot payload surprises.
 
 ## Rolling back a release

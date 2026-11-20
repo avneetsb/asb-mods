@@ -77,6 +77,8 @@ Flags
   --json                 Emit machine-readable JSON for detect/status
   --install-prereqs      Install missing prerequisites, announcing each command (needs a terminal)
   --install-agents       Install absent agent CLIs, using shared-core/npm/agents.json routes
+  Node missing?        ./bootstrap.sh installs a Node toolchain (or --via=nvm, --via=none);
+                       it changes nothing else. Everything else: asbmods doctor.
 
 Environment
   ASB_MODS_HOME   Target home directory (used by the test suite's fixture home)
@@ -86,7 +88,8 @@ Environment
 More flags
   --strict               Exit 3 when a phase soft-failed: archive incomplete, removal failures,
                          npm packages unresolvable, brew rows still missing after --install-brew,
-                         or secrets verification failed. Default exit 0 means "ran to completion".
+                         a prerequisite or agent CLI install failed, or secrets verification failed.
+                         Default exit 0 means "ran to completion", not "did everything".
   --help, -h             This text
 
 Rejected on purpose
@@ -95,8 +98,9 @@ Rejected on purpose
 
 Exit codes
   0  ran to completion (a skipped removal or missing brew rows is not an error)
-  1  fatal error, or shared-core missing next to the installer
-  2  bad usage: unknown command, unknown flag, invalid --scope, or --agent passed
+  1  fatal error, or shared-core missing next to the installer. Also: \`asbmods doctor\` found a gap
+  2  bad usage: unknown command, unknown flag, invalid --scope, --agent passed, or an --install-*
+     flag under --no-input (an unattended run cannot consent to installing software)
   3  --strict and at least one phase soft-failed
 `;
 

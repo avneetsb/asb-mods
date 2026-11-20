@@ -77,7 +77,7 @@ npx github:avneetsb/asb-mods#<commit-sha> --dry-run            # pin a specific 
 
 `github:` resolves to `git+ssh`, so it uses your SSH key; the `git+https` form needs none.
 Both were verified against this repo (`npm view git+ssh://git@github.com/avneetsb/asb-mods.git`
-→ `@asbmods/install 0.2.0`).
+→ `@asbmods/install 0.3.0`, re-verified when v0.3.0 was tagged).
 
 ### First run, in order
 
