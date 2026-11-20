@@ -36,9 +36,9 @@ machine. Removal is only ever what you explicitly authorise with `--allow-destru
 Nothing is cached between runs, so the version is whatever the ref points at:
 
 ```bash
-npx github:avneetsb/asb-mods#v0.1.0 --dry-run    # pinned: what this release would do
+npx github:avneetsb/asb-mods#v0.2.0 --dry-run    # pinned: what this release would do
 npx github:avneetsb/asb-mods#main   --dry-run    # moving: current main
-npx github:avneetsb/asb-mods#v0.1.0 install      # deploy the pinned payload
+npx github:avneetsb/asb-mods#v0.2.0 install      # deploy the pinned payload
 ```
 
 Pin a tag on any machine you care about. `#main` is fine for a throwaway VM and wrong for your laptop,
@@ -91,7 +91,7 @@ The git tag points at the commit whose payload was live at archive time — pair
 ### Layer 4 — roll back the package version
 
 ```bash
-git tag -l --sort=-creatordate          # what exists: v0.1.0 today
+git tag -l --sort=-creatordate          # what exists: v0.1.0 then v0.2.0 now
 git checkout v0.1.0 && asbmods install  # deploy the older payload over the newer one
 ```
 

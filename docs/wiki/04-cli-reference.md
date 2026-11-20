@@ -107,7 +107,7 @@ asbmods detect --json > inventory.json
 asbmods status
 
 # 2. Reproduce a machine from scratch
-npx github:avneetsb/asb-mods#v0.1.0 --allow-destructive --yes
+npx github:avneetsb/asb-mods#v0.2.0 --allow-destructive --yes
 exec zsh && asbmods status
 
 # 3. Update an existing install (no removal)

@@ -127,7 +127,7 @@ restricted machines. [Page 14](14-contributing.md).
 
 **Is this published to npm?**
 Not yet — `npm view @asbmods/install version` returns `E404`. Use a clone or
-`npx github:avneetsb/asb-mods#v0.1.0`. Publishing steps are on
+`npx github:avneetsb/asb-mods#v0.2.0`. Publishing steps are on
 [page 15](15-release-and-publishing.md).
 
 **Are the releases signed?**
