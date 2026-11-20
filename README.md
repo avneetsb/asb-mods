@@ -44,7 +44,7 @@ wins. Check what is live with `command -v asbmods` and `readlink -f "$(command -
 
 ```bash
 npx github:avneetsb/asb-mods --dry-run
-npx github:avneetsb/asb-mods                       # full cutover, prompting as it goes
+npx github:avneetsb/asb-mods                       # detect -> archive -> install -> env/secrets -> hooks (removal needs --allow-destructive)
 npx "git+https://github.com/avneetsb/asb-mods.git" --dry-run   # HTTPS variant, no SSH key
 npx github:avneetsb/asb-mods#<commit-sha> --dry-run            # pin a specific commit
 ```

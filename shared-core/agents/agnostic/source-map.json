@@ -13,7 +13,12 @@
     ],
     "scripts": "~/.agents/scripts/",
     "models": "~/.pi/agent/models.json",
-    "restored_by": ["piExtensions", "piPackages", "agentSkills", "agentScripts"]
+    "restored_by": [
+      "piExtensions",
+      "piPackages",
+      "agentSkills",
+      "agentScripts"
+    ]
   },
   "claude_code": {
     "main_config": "~/.claude/settings.json",
@@ -21,23 +26,34 @@
     "agents": "~/.claude/agents/",
     "plugins": [
       "~/.claude/plugins/cache/",
-      "~/.claude/plugins/manual/"
+      "~/.claude/plugins/marketplaces/",
+      "~/.claude/plugins/installed_plugins.json",
+      "~/.claude/plugins/known_marketplaces.json"
     ],
     "skills": "~/.claude/skills/",
     "instructions": "~/.claude/CLAUDE.md",
-    "restored_by": ["claudeSkills"],
+    "restored_by": [
+      "claudeSkills"
+    ],
     "not_restored": {
       "claudeAgents": "employer-internal agent definitions stay archived, not published",
       "claudePlugins": "plugin installs and registries are third-party state, rebuilt by reinstalling the plugins",
       "claudeHooks": "hook directories belong to third-party plugins; this package registers its own hooks from shared-core/hooks/hooks.json"
-    }
+    },
+    "pluginsOwnership": [
+      "cache and marketplaces hold third-party plugin content \u2014 archived and restorable, never published",
+      "installed_plugins.json and known_marketplaces.json are personal state: which plugins *I* enabled"
+    ]
   },
   "codex": {
     "main_config": "~/.codex/config.toml",
     "hooks": "~/.codex/hooks.json",
     "skills": "~/.codex/skills/",
     "instructions": "~/.codex/AGENTS.md",
-    "restored_by": ["codexSkills", "codexLooseFiles"]
+    "restored_by": [
+      "codexSkills",
+      "codexLooseFiles"
+    ]
   },
   "shared_state": {
     "state_dir": "~/.config/asb-mods/",
