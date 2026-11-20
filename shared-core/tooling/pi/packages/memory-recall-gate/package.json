@@ -1,0 +1,12 @@
+{
+  "name": "memory-recall-gate",
+  "version": "0.1.0",
+  "description": "Seeds engram + mnemosyne memory into context at session start and gates the first substantive decision behind an actual recall: the agent must call mem_context/mem_search (engram) and mnemosyne_recall/mnemosyne_recall_canonical before asserting remembered facts. One purpose: make stored memory get read, not just written. Reads the stores through engram's own HTTP routes and mnemosyne's sqlite file; touches no upstream code.",
+  "type": "module",
+  "pi": {
+    "extensions": ["./extensions/*"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}

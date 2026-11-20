@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": false,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@earendil-works/pi-coding-agent": ["../atelier-panel-merger/node_modules/@earendil-works/pi-coding-agent/dist/index.d.ts"]
+    }
+  },
+  "include": ["extensions/**/*.ts"]
+}

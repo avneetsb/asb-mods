@@ -1,0 +1,19 @@
+{
+	"name": "widget-fold-on-click",
+	"version": "0.1.0",
+	"description": "Click a widget frame's title row to fold it to one line: pi-goal-x's goal dashboard, the beads in-progress box, and the pi-lens diagnostics pane. Adds folding at pi's widget-API boundary (setWidget factory wrap) without touching any upstream package; /fold is the keyboard path and the regular-tuiMode fallback. Required because pi-goal-x has no mouse handling and beads/lens slot owners expose no fold knob.",
+	"pi": { "extensions": ["./extensions/widget-fold-on-click.ts"] },
+	"type": "module",
+	"scripts": {
+		"test": "node --test test/",
+		"check": "tsc --noEmit -p tsconfig.json"
+	},
+	"license": "MIT",
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": ">=1.4.0 <2.0.0"
+	},
+	"devDependencies": {
+		"@types/node": "^24.0.0",
+		"typescript": "^5.9.3"
+	}
+}

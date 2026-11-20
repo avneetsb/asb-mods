@@ -1,0 +1,21 @@
+{
+  "name": "lens-diagnostic-pane",
+  "version": "0.1.0",
+  "description": "pi-goal-x–styled diagnostics pane above/below the editor, fed by pi-lens' public `pilens:diagnostics` event-bus payloads. Renders findings in a rounded, sectioned, color-coded box (brand header / Files section with fix-progress bar / updated footer) and hides itself when there is nothing to show. Requires pi-lens' native widget disabled via ~/.pi-lens/config.json (widget.visible=false). No pi-lens internals touched.",
+  "pi": {
+    "extensions": ["./extensions/*"]
+  },
+  "scripts": {
+    "demo": "node examples/lens-diagnostic-pane.demo.ts"
+  },
+  "type": "module",
+  "license": "MIT",
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=1.4.0 <2.0.0"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.4.0",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3"
+  }
+}

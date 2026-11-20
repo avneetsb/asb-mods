@@ -1,0 +1,13 @@
+{
+  "name": "subagent-sync-only",
+  "version": "0.1.0",
+  "description": "Forbids async/background subagent delegation in every pi session: rewrites each subagent launch to async:false so the child runs synchronously inside the calling session, and refuses launches that are deferred by construction (scheduled runs). One purpose: delegation is always synchronous. Touches no upstream code; hooks pi's documented mutable tool_call event.",
+  "type": "module",
+  "license": "MIT",
+  "pi": {
+    "extensions": ["./extensions/*.js"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}

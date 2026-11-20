@@ -1,0 +1,18 @@
+{
+  "name": "working-line-rate-off",
+  "version": "0.1.0",
+  "description": "Removes the tokens/sec meter from pi's live working line (\"Blanching… · 18m06s · thinking 8m18s · ↑314k ↓26k ⚡31.6 tok/s\") while keeping every other segment, including the ↑input ↓output counters. One purpose: no tok/s in the working line. pi-one-ui has no config key for the rate alone (its finest knob is components.workingLine.segments.tokens, which also deletes the counters), so this wraps pi's public ui.setWorkingIndicator/setWorkingMessage facade instead. Touches no upstream file.",
+  "type": "module",
+  "license": "MIT",
+  "pi": {
+    "extensions": [
+      "./extensions/*"
+    ]
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types test/strip-test.mjs"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}

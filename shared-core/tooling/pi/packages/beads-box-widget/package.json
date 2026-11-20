@@ -1,0 +1,17 @@
+{
+  "name": "beads-box-widget",
+  "version": "0.1.0",
+  "description": "Renders the beads in-progress above-editor panel as a bordered box (pi-goal-x house style) by owning the 'beads-wip' widget slot at pi's widget-API boundary. Replaces @abix5/pi-beads' plain-line panel without touching upstream code; data comes from the public `bd` CLI. Required because pi-beads has no config knob to disable/restyle its widget.",
+  "pi": {
+    "extensions": ["./extensions/beads-box-widget.ts"]
+  },
+  "type": "module",
+  "license": "MIT",
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=1.4.0 <2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3"
+  }
+}

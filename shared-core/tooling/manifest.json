@@ -1,0 +1,753 @@
+{
+  "generatedAt": "2026-11-20T09:24:31.366Z",
+  "generator": "tools/vendor.js",
+  "policy": "shared-core/tooling/policy.json",
+  "note": "Regenerate with `node tools/vendor.js`. Dependency trees, caches, scratch, machine state and anything naming the author home path or employer internal systems are never vendored; see the exclusions array. npm globals and shared-core/brew/formulae.csv restore dependencies, and secrets are collected by the installer prompt rather than shipped.",
+  "totals": {
+    "bundles": 46,
+    "files": 160,
+    "bytes": 1240518,
+    "droppedFiles": 0,
+    "skippedProtected": 2,
+    "exclusions": 14
+  },
+  "byClass": {
+    "piExtensions": {
+      "bundles": 10,
+      "files": 10
+    },
+    "piPackages": {
+      "bundles": 10,
+      "files": 81
+    },
+    "agentScripts": {
+      "bundles": 5,
+      "files": 5
+    },
+    "agentSkills": {
+      "bundles": 9,
+      "files": 26
+    },
+    "claudeSkills": {
+      "bundles": 9,
+      "files": 26
+    },
+    "codexSkills": {
+      "bundles": 1,
+      "files": 10
+    },
+    "codexLooseFiles": {
+      "bundles": 2,
+      "files": 2
+    }
+  },
+  "exclusions": [
+    {
+      "cls": "agentScripts",
+      "count": 1,
+      "nameDigests": [
+        "fac7b226"
+      ],
+      "reason": "Single-file test with an absolute author home path baked in."
+    },
+    {
+      "cls": "agentScripts",
+      "count": 1,
+      "nameDigests": [
+        "0e7cb8ab"
+      ],
+      "reason": "Names employer-internal model endpoints."
+    },
+    {
+      "cls": "agentScripts",
+      "count": 1,
+      "nameDigests": [
+        "0be122c6"
+      ],
+      "reason": "Employer-internal source-org indexing pipeline and its per-repository digests."
+    },
+    {
+      "cls": "agentSkills",
+      "count": 31,
+      "nameDigests": [
+        "04fad86e",
+        "31fc2df2",
+        "ce98feb1",
+        "7f34f9e6",
+        "72267c66",
+        "6dcb196c",
+        "9f85fa96",
+        "689ed4a3",
+        "fbee2b16",
+        "aa01dbd8",
+        "f1259893",
+        "59457112",
+        "3f141998",
+        "9c6dcd7c",
+        "72e8dd57",
+        "4af6efd3",
+        "133df8e6",
+        "b11ff0af",
+        "3e17511e",
+        "9d8349cd",
+        "52d216c9",
+        "99103ed8",
+        "d7651533",
+        "80c05cd4",
+        "dae2f72e",
+        "33e03bf7",
+        "9e5125bb",
+        "ca261dc9",
+        "848e432b",
+        "7501fd28",
+        "a626cd6e"
+      ],
+      "reason": "A skill or loose file not declared in personalSkills/personalCodexFiles is treated as third-party or employer content: it stays archived on this machine and is reinstalled from its upstream source (npm package, marketplace, or the employer) rather than redistributed by this package."
+    },
+    {
+      "cls": "claudeAgents",
+      "count": 18,
+      "nameDigests": [
+        "9918aa1b",
+        "d12f2601",
+        "40f78e07",
+        "04dd396d",
+        "f5b7e193",
+        "3e444266",
+        "d690a554",
+        "252bed08",
+        "5c9b9665",
+        "5b92ea78",
+        "d801aad7",
+        "bddcb9d3",
+        "9bb6fecd",
+        "4617d3d4",
+        "3f714523",
+        "5491be42",
+        "6a20678d",
+        "0e1dcf61"
+      ],
+      "reason": "Employer-internal agent definitions (employer-internal systems query runners, reconciliation and payout services). Not personal tooling."
+    },
+    {
+      "cls": "claudeHooks",
+      "count": 2,
+      "nameDigests": [
+        "7bd2eb91",
+        "e6226632"
+      ],
+      "reason": "Hook directories belong to third-party plugins; this package registers its own hooks via shared-core/hooks instead."
+    },
+    {
+      "cls": "claudePlugins",
+      "count": 9,
+      "nameDigests": [
+        "786d9300",
+        "b0359280",
+        "a17c9aaa",
+        "9fcb3b40",
+        "cd745796",
+        "67008bcf",
+        "4ec0586e",
+        "70146948",
+        "3a21295d"
+      ],
+      "reason": "Plugin installs and their registries (installed_plugins.json, marketplace/catalog caches) are third-party state: Claude Code rebuilds them when the plugins are reinstalled."
+    },
+    {
+      "cls": "claudeSkills",
+      "count": 55,
+      "nameDigests": [
+        "6c265e45",
+        "63acf68c",
+        "04fad86e",
+        "31fc2df2",
+        "ce98feb1",
+        "7f34f9e6",
+        "72267c66",
+        "6dcb196c",
+        "9f85fa96",
+        "689ed4a3",
+        "fbee2b16",
+        "aa01dbd8",
+        "f1259893",
+        "59457112",
+        "3f141998",
+        "9c6dcd7c",
+        "056f1182",
+        "a44777b5",
+        "01e5dfc7",
+        "72e8dd57",
+        "4af6efd3",
+        "133df8e6",
+        "b11ff0af",
+        "3e17511e",
+        "c1c1ec34",
+        "9d8349cd",
+        "6e83517e",
+        "52d216c9",
+        "99103ed8",
+        "a54d3b1a",
+        "d7651533",
+        "5ff6311d",
+        "68c91115",
+        "7f04958b",
+        "dae2f72e",
+        "33e03bf7",
+        "9e5125bb",
+        "ca261dc9",
+        "848e432b",
+        "7501fd28",
+        "a626cd6e",
+        "d11ce424",
+        "5dbb666c",
+        "f723d6f4",
+        "31a296b6",
+        "655112c9",
+        "937385c3",
+        "64771f63",
+        "5ab1aff9",
+        "806b9cd8",
+        "3898face",
+        "61703ced",
+        "0b3f06e5",
+        "a635d9c3",
+        "15fa6c92"
+      ],
+      "reason": "A skill or loose file not declared in personalSkills/personalCodexFiles is treated as third-party or employer content: it stays archived on this machine and is reinstalled from its upstream source (npm package, marketplace, or the employer) rather than redistributed by this package."
+    },
+    {
+      "cls": "codexLooseFiles",
+      "count": 68,
+      "nameDigests": [
+        "1b181617",
+        "43320eca",
+        "38eafa70",
+        "0f51aaea",
+        "b449053c",
+        "f2547432",
+        "087703e8",
+        "12ac5bd9",
+        "acf298e6",
+        "05cb34b4",
+        "2234089e",
+        "a396ec1b",
+        "ef98362b",
+        "b0359280",
+        "10fface5",
+        "64b8c1e9",
+        "d636b534",
+        "90f748af",
+        "c2996dfd",
+        "3de1f1e2",
+        "5e79a1b3",
+        "96c9d106",
+        "f04706a9",
+        "740a3ed8",
+        "035ba9e4",
+        "a95bcd32",
+        "f0cd0b17",
+        "c3616e85",
+        "45ffd60d",
+        "2e6fa002",
+        "68ec2b7e",
+        "008d2d3c",
+        "24214765",
+        "5e701a68",
+        "549fe287",
+        "ac171c41",
+        "64b8918d",
+        "7d7d929b",
+        "3f6cd26f",
+        "40f34a55",
+        "d8ae088a",
+        "a8acce24",
+        "3a905558",
+        "440c3339",
+        "b3a65182",
+        "2ecfa95a",
+        "05663dc0",
+        "36faafcb",
+        "d4f8e92e",
+        "ead49e55",
+        "caa155ad",
+        "f64c25de",
+        "d7311056",
+        "781791f5",
+        "fa327a28",
+        "816f2b87",
+        "6d64a5ee",
+        "84bd183d",
+        "cddaa38c",
+        "59d2d44c",
+        "be91fd03",
+        "389847e6",
+        "4bc36185",
+        "6a847139",
+        "54e2ff20",
+        "45c6c184",
+        "f581bfc7",
+        "32d1d8cd"
+      ],
+      "reason": "A skill or loose file not declared in personalSkills/personalCodexFiles is treated as third-party or employer content: it stays archived on this machine and is reinstalled from its upstream source (npm package, marketplace, or the employer) rather than redistributed by this package."
+    },
+    {
+      "cls": "codexSkills",
+      "count": 3,
+      "nameDigests": [
+        "274205c7",
+        "82ab1a29",
+        "7501fd28"
+      ],
+      "reason": "A skill or loose file not declared in personalSkills/personalCodexFiles is treated as third-party or employer content: it stays archived on this machine and is reinstalled from its upstream source (npm package, marketplace, or the employer) rather than redistributed by this package."
+    },
+    {
+      "cls": "piPackages",
+      "count": 1,
+      "nameDigests": [
+        "8506d6c3"
+      ],
+      "reason": "Extension source references employer-internal systems."
+    },
+    {
+      "cls": "piPackages",
+      "count": 1,
+      "nameDigests": [
+        "b498d3ff"
+      ],
+      "reason": "Source routes learnings into employer-internal knowledge systems."
+    },
+    {
+      "cls": "piPackages",
+      "count": 1,
+      "nameDigests": [
+        "be181fe3"
+      ],
+      "reason": "Source names employer-internal model refs and paths."
+    },
+    {
+      "cls": "piPackages",
+      "count": 1,
+      "nameDigests": [
+        "50b78c43"
+      ],
+      "reason": "Prompts/skills/scripts reference the employer-internal onboarding pipeline in source."
+    }
+  ],
+  "bundles": [
+    {
+      "cls": "agentScripts",
+      "name": "canary.py",
+      "bundle": "shared-core/tooling/agents/scripts/canary.py",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.agents/scripts",
+      "fileCount": 1,
+      "bytes": 5838
+    },
+    {
+      "cls": "agentScripts",
+      "name": "cross_session_proof.py",
+      "bundle": "shared-core/tooling/agents/scripts/cross_session_proof.py",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.agents/scripts",
+      "fileCount": 1,
+      "bytes": 12119
+    },
+    {
+      "cls": "agentScripts",
+      "name": "fresh_pi_sessions.py",
+      "bundle": "shared-core/tooling/agents/scripts/fresh_pi_sessions.py",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.agents/scripts",
+      "fileCount": 1,
+      "bytes": 7921
+    },
+    {
+      "cls": "agentScripts",
+      "name": "rtk_savings_sample.py",
+      "bundle": "shared-core/tooling/agents/scripts/rtk_savings_sample.py",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.agents/scripts",
+      "fileCount": 1,
+      "bytes": 8510
+    },
+    {
+      "cls": "agentScripts",
+      "name": "splice_policy.py",
+      "bundle": "shared-core/tooling/agents/scripts/splice_policy.py",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.agents/scripts",
+      "fileCount": 1,
+      "bytes": 1884
+    },
+    {
+      "cls": "agentSkills",
+      "name": "graphify",
+      "bundle": "shared-core/tooling/agents/skills/graphify",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/skills/graphify",
+      "fileCount": 10,
+      "bytes": 85245
+    },
+    {
+      "cls": "agentSkills",
+      "name": "investigate-first",
+      "bundle": "shared-core/tooling/agents/skills/investigate-first",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/skills/investigate-first",
+      "fileCount": 2,
+      "bytes": 890
+    },
+    {
+      "cls": "agentSkills",
+      "name": "lean-build",
+      "bundle": "shared-core/tooling/agents/skills/lean-build",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/skills/lean-build",
+      "fileCount": 2,
+      "bytes": 1280
+    },
+    {
+      "cls": "agentSkills",
+      "name": "megacave",
+      "bundle": "shared-core/tooling/agents/skills/megacave",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/skills/megacave",
+      "fileCount": 2,
+      "bytes": 3667
+    },
+    {
+      "cls": "agentSkills",
+      "name": "migration",
+      "bundle": "shared-core/tooling/agents/skills/migration",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/skills/migration",
+      "fileCount": 2,
+      "bytes": 987
+    },
+    {
+      "cls": "agentSkills",
+      "name": "safe-refactor",
+      "bundle": "shared-core/tooling/agents/skills/safe-refactor",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/skills/safe-refactor",
+      "fileCount": 2,
+      "bytes": 906
+    },
+    {
+      "cls": "agentSkills",
+      "name": "surgical-patch",
+      "bundle": "shared-core/tooling/agents/skills/surgical-patch",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/skills/surgical-patch",
+      "fileCount": 2,
+      "bytes": 858
+    },
+    {
+      "cls": "agentSkills",
+      "name": "ultracave",
+      "bundle": "shared-core/tooling/agents/skills/ultracave",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/skills/ultracave",
+      "fileCount": 2,
+      "bytes": 3398
+    },
+    {
+      "cls": "agentSkills",
+      "name": "verify-and-stop",
+      "bundle": "shared-core/tooling/agents/skills/verify-and-stop",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/skills/verify-and-stop",
+      "fileCount": 2,
+      "bytes": 901
+    },
+    {
+      "cls": "claudeSkills",
+      "name": "graphify",
+      "bundle": "shared-core/tooling/claude/skills/graphify",
+      "layout": "dir",
+      "dest": "{{HOME}}/.claude/skills/graphify",
+      "fileCount": 10,
+      "bytes": 85588
+    },
+    {
+      "cls": "claudeSkills",
+      "name": "investigate-first",
+      "bundle": "shared-core/tooling/claude/skills/investigate-first",
+      "layout": "dir",
+      "dest": "{{HOME}}/.claude/skills/investigate-first",
+      "fileCount": 2,
+      "bytes": 890
+    },
+    {
+      "cls": "claudeSkills",
+      "name": "lean-build",
+      "bundle": "shared-core/tooling/claude/skills/lean-build",
+      "layout": "dir",
+      "dest": "{{HOME}}/.claude/skills/lean-build",
+      "fileCount": 2,
+      "bytes": 1280
+    },
+    {
+      "cls": "claudeSkills",
+      "name": "megacave",
+      "bundle": "shared-core/tooling/claude/skills/megacave",
+      "layout": "dir",
+      "dest": "{{HOME}}/.claude/skills/megacave",
+      "fileCount": 2,
+      "bytes": 3667
+    },
+    {
+      "cls": "claudeSkills",
+      "name": "migration",
+      "bundle": "shared-core/tooling/claude/skills/migration",
+      "layout": "dir",
+      "dest": "{{HOME}}/.claude/skills/migration",
+      "fileCount": 2,
+      "bytes": 987
+    },
+    {
+      "cls": "claudeSkills",
+      "name": "safe-refactor",
+      "bundle": "shared-core/tooling/claude/skills/safe-refactor",
+      "layout": "dir",
+      "dest": "{{HOME}}/.claude/skills/safe-refactor",
+      "fileCount": 2,
+      "bytes": 906
+    },
+    {
+      "cls": "claudeSkills",
+      "name": "surgical-patch",
+      "bundle": "shared-core/tooling/claude/skills/surgical-patch",
+      "layout": "dir",
+      "dest": "{{HOME}}/.claude/skills/surgical-patch",
+      "fileCount": 2,
+      "bytes": 858
+    },
+    {
+      "cls": "claudeSkills",
+      "name": "ultracave",
+      "bundle": "shared-core/tooling/claude/skills/ultracave",
+      "layout": "dir",
+      "dest": "{{HOME}}/.claude/skills/ultracave",
+      "fileCount": 2,
+      "bytes": 3398
+    },
+    {
+      "cls": "claudeSkills",
+      "name": "verify-and-stop",
+      "bundle": "shared-core/tooling/claude/skills/verify-and-stop",
+      "layout": "dir",
+      "dest": "{{HOME}}/.claude/skills/verify-and-stop",
+      "fileCount": 2,
+      "bytes": 901
+    },
+    {
+      "cls": "codexLooseFiles",
+      "name": "AGENTS.md",
+      "bundle": "shared-core/tooling/codex/loose/AGENTS.md",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.codex",
+      "fileCount": 1,
+      "bytes": 1484
+    },
+    {
+      "cls": "codexLooseFiles",
+      "name": "herdr-agent-state.sh",
+      "bundle": "shared-core/tooling/codex/loose/herdr-agent-state.sh",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.codex",
+      "fileCount": 1,
+      "bytes": 2966
+    },
+    {
+      "cls": "codexSkills",
+      "name": "graphify",
+      "bundle": "shared-core/tooling/codex/skills/graphify",
+      "layout": "dir",
+      "dest": "{{HOME}}/.codex/skills/graphify",
+      "fileCount": 10,
+      "bytes": 82031
+    },
+    {
+      "cls": "piExtensions",
+      "name": "auto-compact.ts",
+      "bundle": "shared-core/tooling/pi/extensions/auto-compact.ts",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.pi/agent/extensions",
+      "fileCount": 1,
+      "bytes": 4305
+    },
+    {
+      "cls": "piExtensions",
+      "name": "auto-private-tags.ts",
+      "bundle": "shared-core/tooling/pi/extensions/auto-private-tags.ts",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.pi/agent/extensions",
+      "fileCount": 1,
+      "bytes": 6603
+    },
+    {
+      "cls": "piExtensions",
+      "name": "engram-project-pin.ts",
+      "bundle": "shared-core/tooling/pi/extensions/engram-project-pin.ts",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.pi/agent/extensions",
+      "fileCount": 1,
+      "bytes": 9782
+    },
+    {
+      "cls": "piExtensions",
+      "name": "engram-review-on-compaction.ts",
+      "bundle": "shared-core/tooling/pi/extensions/engram-review-on-compaction.ts",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.pi/agent/extensions",
+      "fileCount": 1,
+      "bytes": 6743
+    },
+    {
+      "cls": "piExtensions",
+      "name": "extension-crash-guard.ts",
+      "bundle": "shared-core/tooling/pi/extensions/extension-crash-guard.ts",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.pi/agent/extensions",
+      "fileCount": 1,
+      "bytes": 6911
+    },
+    {
+      "cls": "piExtensions",
+      "name": "herdr-agent-state.ts",
+      "bundle": "shared-core/tooling/pi/extensions/herdr-agent-state.ts",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.pi/agent/extensions",
+      "fileCount": 1,
+      "bytes": 6694
+    },
+    {
+      "cls": "piExtensions",
+      "name": "memory-config.ts",
+      "bundle": "shared-core/tooling/pi/extensions/memory-config.ts",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.pi/agent/extensions",
+      "fileCount": 1,
+      "bytes": 11066
+    },
+    {
+      "cls": "piExtensions",
+      "name": "pi-rtk-optimizer",
+      "bundle": "shared-core/tooling/pi/extensions/pi-rtk-optimizer",
+      "layout": "dir",
+      "dest": "{{HOME}}/.pi/agent/extensions/pi-rtk-optimizer",
+      "fileCount": 1,
+      "bytes": 686
+    },
+    {
+      "cls": "piExtensions",
+      "name": "prompt-recall.ts",
+      "bundle": "shared-core/tooling/pi/extensions/prompt-recall.ts",
+      "layout": "flatten",
+      "dest": "{{HOME}}/.pi/agent/extensions",
+      "fileCount": 1,
+      "bytes": 10562
+    },
+    {
+      "cls": "piExtensions",
+      "name": "subagent",
+      "bundle": "shared-core/tooling/pi/extensions/subagent",
+      "layout": "dir",
+      "dest": "{{HOME}}/.pi/agent/extensions/subagent",
+      "fileCount": 1,
+      "bytes": 30
+    },
+    {
+      "cls": "piPackages",
+      "name": "async-agents-box-widget",
+      "bundle": "shared-core/tooling/pi/packages/async-agents-box-widget",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/packages/async-agents-box-widget/{{NAME}}",
+      "fileCount": 8,
+      "bytes": 43383
+    },
+    {
+      "cls": "piPackages",
+      "name": "beads-box-widget",
+      "bundle": "shared-core/tooling/pi/packages/beads-box-widget",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/packages/beads-box-widget/{{NAME}}",
+      "fileCount": 8,
+      "bytes": 96231
+    },
+    {
+      "cls": "piPackages",
+      "name": "lens-diagnostic-pane",
+      "bundle": "shared-core/tooling/pi/packages/lens-diagnostic-pane",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/packages/lens-diagnostic-pane/{{NAME}}",
+      "fileCount": 5,
+      "bytes": 82553
+    },
+    {
+      "cls": "piPackages",
+      "name": "memory-recall-gate",
+      "bundle": "shared-core/tooling/pi/packages/memory-recall-gate",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/packages/memory-recall-gate/{{NAME}}",
+      "fileCount": 2,
+      "bytes": 10003
+    },
+    {
+      "cls": "piPackages",
+      "name": "memory-usage-gate",
+      "bundle": "shared-core/tooling/pi/packages/memory-usage-gate",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/packages/memory-usage-gate/{{NAME}}",
+      "fileCount": 4,
+      "bytes": 38052
+    },
+    {
+      "cls": "piPackages",
+      "name": "pi-thinking-steps-compat",
+      "bundle": "shared-core/tooling/pi/packages/pi-thinking-steps-compat",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/packages/pi-thinking-steps-compat/{{NAME}}",
+      "fileCount": 30,
+      "bytes": 468452
+    },
+    {
+      "cls": "piPackages",
+      "name": "subagent-sync-only",
+      "bundle": "shared-core/tooling/pi/packages/subagent-sync-only",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/packages/subagent-sync-only/{{NAME}}",
+      "fileCount": 5,
+      "bytes": 12087
+    },
+    {
+      "cls": "piPackages",
+      "name": "tool-surface-gate",
+      "bundle": "shared-core/tooling/pi/packages/tool-surface-gate",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/packages/tool-surface-gate/{{NAME}}",
+      "fileCount": 8,
+      "bytes": 37683
+    },
+    {
+      "cls": "piPackages",
+      "name": "widget-fold-on-click",
+      "bundle": "shared-core/tooling/pi/packages/widget-fold-on-click",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/packages/widget-fold-on-click/{{NAME}}",
+      "fileCount": 7,
+      "bytes": 46745
+    },
+    {
+      "cls": "piPackages",
+      "name": "working-line-rate-off",
+      "bundle": "shared-core/tooling/pi/packages/working-line-rate-off",
+      "layout": "dir",
+      "dest": "{{HOME}}/.agents/packages/working-line-rate-off/{{NAME}}",
+      "fileCount": 4,
+      "bytes": 22587
+    }
+  ]
+}

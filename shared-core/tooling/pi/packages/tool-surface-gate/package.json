@@ -1,0 +1,13 @@
+{
+  "name": "tool-surface-gate",
+  "version": "0.1.0",
+  "description": "Parks tool families that measured zero calls across the user's session history at session start, shrinking the declared tool surface, and wakes them on demand with tools_wake. One purpose: spend prompt tokens only on tools this machine actually uses. Touches no upstream code; uses pi's public dynamic-tool API.",
+  "type": "module",
+  "license": "MIT",
+  "pi": {
+    "extensions": ["./extensions/*.js"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}

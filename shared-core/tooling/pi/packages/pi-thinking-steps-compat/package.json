@@ -1,0 +1,81 @@
+{
+  "name": "pi-thinking-steps-compat",
+  "version": "1.0.17-compat.1",
+  "description": "Fork of pi-thinking-steps with a compatibility fix for Pi >= 1.5.0 (createMarkdownTransform isStreaming getter). Three-mode thinking-step rendering for Pi's TUI.",
+  "license": "MIT",
+  "type": "module",
+  "main": "index.ts",
+  "forkOf": {
+    "name": "pi-thinking-steps",
+    "version": "1.0.17",
+    "repository": "https://github.com/crustyhacker/pi-thinking-steps"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/crustyhacker/pi-thinking-steps.git"
+  },
+  "homepage": "https://github.com/crustyhacker/pi-thinking-steps#readme",
+  "bugs": {
+    "url": "https://github.com/crustyhacker/pi-thinking-steps/issues"
+  },
+  "keywords": [
+    "pi",
+    "pi-package",
+    "terminal",
+    "extension",
+    "thinking",
+    "tui"
+  ],
+  "files": [
+    "LICENSE",
+    "README.md",
+    "FORK_NOTES.md",
+    "CHANGELOG.md",
+    "assets/readme-hero.svg",
+    "assets/modes-overview.svg",
+    "index.ts",
+    "export.ts",
+    "autosave.ts",
+    "review.ts",
+    "inspection.ts",
+    "archives.ts",
+    "diagnostics.ts",
+    "internal-patch.ts",
+    "parse.ts",
+    "persistence.ts",
+    "render.ts",
+    "state.ts",
+    "types.ts",
+    "tsconfig.json",
+    "test/thinking-steps.test.ts",
+    "test/export.test.ts",
+    "test/review-autosave.test.ts",
+    "test/inspection.test.ts",
+    "test/summarizer-challenger.test.ts",
+    "scripts/test-package.mjs",
+    "scripts/test-host.mjs",
+    "scripts/test-host-markdown.mjs",
+    "scripts/link-host-types.mjs"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "scripts": {
+    "link:host-types": "node scripts/link-host-types.mjs",
+    "build": "tsc --noEmit",
+    "test": "npm run build && node --import tsx test/thinking-steps.test.ts && node --import tsx test/summarizer-challenger.test.ts",
+    "test:package": "node scripts/test-package.mjs",
+    "test:host": "node scripts/test-host.mjs",
+    "test:host-markdown": "node scripts/test-host-markdown.mjs"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  }
+}

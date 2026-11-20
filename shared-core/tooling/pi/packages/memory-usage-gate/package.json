@@ -1,0 +1,17 @@
+{
+  "name": "memory-usage-gate",
+  "version": "0.1.0",
+  "description": "Closes the memory loop: before a session settles, it must have actually READ memory (mem_context/mem_search/mnemosyne_recall) and actually WRITTEN durable findings (mem_save), and the real per-session counts are recorded to disk. One purpose: make the memory stack demonstrably used, not merely seeded. Reads no store contents and edits no upstream code.",
+  "type": "module",
+  "pi": {
+    "extensions": [
+      "./extensions/*"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types test/usage-gate-test.mjs"
+  }
+}

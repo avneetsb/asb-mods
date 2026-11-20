@@ -1,0 +1,97 @@
+{
+  "_comment": "Vendoring scope policy for shared-core/tooling/. tools/vendor.js enforces it and records every exclusion in manifest.json; test/install.test.js re-checks the shipped tree against these same terms. The rule: this package is published, so it carries PERSONAL tooling only, and nothing that names machine paths or an employer's internal systems. Archived-on-machine is not the same as published: everything removed is still archived locally under ~/.config/asb-mods/backups/<stamp>/ regardless of this policy.",
+  "personalOnly": true,
+  "skipPathSegments": [
+    ".unipi",
+    ".codex",
+    "artifacts",
+    "_archive"
+  ],
+  "dropInsteadOfBundle": [
+    "(^|/)test/",
+    "(^|/)docs/",
+    "(^|/)references/",
+    "\\.(md|txt)$",
+    "CHANGELOG",
+    "IMPROVEMENT-PLAN"
+  ],
+  "scan": {
+    "homePath": "derived at runtime from $HOME (never written into a shipped file)",
+    "internalTermsFile": "policy.local.json",
+    "note": "The literal employer term list stays off the public package: it is read from the git-ignored policy.local.json when present. Mechanism ships, vocabulary does not."
+  },
+  "denyBundles": [
+    {
+      "cls": "claudeAgents",
+      "name": "*",
+      "reason": "Employer-internal agent definitions (employer-internal systems query runners, reconciliation and payout services). Not personal tooling."
+    },
+    {
+      "cls": "agentScripts",
+      "name": "org-index",
+      "reason": "Employer-internal source-org indexing pipeline and its per-repository digests."
+    },
+    {
+      "cls": "agentScripts",
+      "name": "memory_savings_metrics.py",
+      "reason": "Names employer-internal model endpoints."
+    },
+    {
+      "cls": "agentScripts",
+      "name": "atelier-panel-session-scope.test.mjs",
+      "reason": "Single-file test with an absolute author home path baked in."
+    },
+    {
+      "cls": "piExtensions",
+      "name": ".unipi",
+      "reason": "Per-machine state directory, not source."
+    },
+    {
+      "cls": "piPackages",
+      "name": "pi-wf",
+      "reason": "Prompts/skills/scripts reference the employer-internal onboarding pipeline in source."
+    },
+    {
+      "cls": "piPackages",
+      "name": "pi-session-model-sync",
+      "reason": "Source names employer-internal model refs and paths."
+    },
+    {
+      "cls": "piPackages",
+      "name": "pi-session-learnings",
+      "reason": "Source routes learnings into employer-internal knowledge systems."
+    },
+    {
+      "cls": "piPackages",
+      "name": "atelier-panel-merger",
+      "reason": "Extension source references employer-internal systems."
+    },
+    {
+      "cls": "claudePlugins",
+      "name": "*",
+      "reason": "Plugin installs and their registries (installed_plugins.json, marketplace/catalog caches) are third-party state: Claude Code rebuilds them when the plugins are reinstalled."
+    },
+    {
+      "cls": "claudeHooks",
+      "name": "*",
+      "reason": "Hook directories belong to third-party plugins; this package registers its own hooks via shared-core/hooks instead."
+    }
+  ],
+  "restoreNote": "Excluded bundles are still removed by the cutover and still archived; on THIS machine restore them with `asbmods reset`. They are simply absent from what a fresh machine gets from the published package, which is why `status` prints the exclusion list.",
+  "personalSkills": [
+    "graphify",
+    "investigate-first",
+    "lean-build",
+    "megacave",
+    "migration",
+    "safe-refactor",
+    "surgical-patch",
+    "ultracave",
+    "verify-and-stop"
+  ],
+  "personalCodexFiles": [
+    "AGENTS.md",
+    "herdr-agent-state.sh"
+  ],
+  "unlistedNote": "A skill or loose file not declared in personalSkills/personalCodexFiles is treated as third-party or employer content: it stays archived on this machine and is reinstalled from its upstream source (npm package, marketplace, or the employer) rather than redistributed by this package."
+}

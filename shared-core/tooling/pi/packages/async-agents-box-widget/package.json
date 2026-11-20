@@ -1,0 +1,19 @@
+{
+  "name": "async-agents-box-widget",
+  "version": "0.1.0",
+  "description": "Renders pi-subagents' async-agents above-editor panel as a bordered box (beads-box-widget / pi-goal-x house style) by wrapping the component at pi's widget-API boundary. No upstream code is touched and no run state is re-derived: the framed lines ARE pi-subagents' own output, so spinners, folding and live updates keep working. Required because pi-subagents has no config knob to restyle the widget (asyncWidget only hides it).",
+  "pi": {
+    "extensions": [
+      "./extensions/async-agents-box-widget.ts"
+    ]
+  },
+  "type": "module",
+  "license": "MIT",
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=1.4.0 <2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3"
+  }
+}
