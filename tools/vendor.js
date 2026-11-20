@@ -34,6 +34,12 @@ const SCAN_TERMS = (fs.existsSync(LOCAL_TERMS)
   ? (JSON.parse(fs.readFileSync(LOCAL_TERMS, 'utf8')).internalTerms || [])
   : (POLICY.scan.internalTerms || []))
   .map((t) => t.toLowerCase());
+if (!SCAN_TERMS.length) {
+  process.stderr.write(
+    'warning: internal term vocabulary absent — shared-core/tooling/policy.local.json does not exist, ' +
+      'so employer-infrastructure screening is inactive (see policy.json scan.internalTermsFile)\n'
+  );
+}
 const SEGMENTS = new Set(POLICY.skipPathSegments);
 const DROP_RES = (POLICY.dropInsteadOfBundle || []).map((p) => new RegExp(p, 'i'));
 const isDropOnly = (rel) => DROP_RES.some((re) => re.test(rel));

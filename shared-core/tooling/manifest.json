@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-20T09:59:34.488Z",
+  "generatedAt": "2026-11-20T13:21:13.671Z",
   "generator": "tools/vendor.js",
   "policy": "shared-core/tooling/policy.json",
   "note": "Regenerate with `node tools/vendor.js`. Dependency trees, caches, scratch, machine state and anything naming the author home path or employer internal systems are never vendored; see the exclusions array. npm globals and shared-core/brew/formulae.csv restore dependencies, and secrets are collected by the installer prompt rather than shipped.",
@@ -127,7 +127,7 @@
         "6a20678d",
         "0e1dcf61"
       ],
-      "reason": "Employer-internal agent definitions (employer-internal systems query runners, reconciliation and payout services). Not personal tooling."
+      "reason": "Employer-internal agent definitions. Not personal tooling."
     },
     {
       "cls": "claudeHooks",

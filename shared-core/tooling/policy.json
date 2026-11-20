@@ -25,7 +25,7 @@
     {
       "cls": "claudeAgents",
       "name": "*",
-      "reason": "Employer-internal agent definitions (employer-internal systems query runners, reconciliation and payout services). Not personal tooling."
+      "reason": "Employer-internal agent definitions. Not personal tooling."
     },
     {
       "cls": "agentScripts",
@@ -94,5 +94,6 @@
     "AGENTS.md",
     "herdr-agent-state.sh"
   ],
-  "unlistedNote": "A skill or loose file not declared in personalSkills/personalCodexFiles is treated as third-party or employer content: it stays archived on this machine and is reinstalled from its upstream source (npm package, marketplace, or the employer) rather than redistributed by this package."
+  "unlistedNote": "A skill or loose file not declared in personalSkills/personalCodexFiles is treated as third-party or employer content: it stays archived on this machine and is reinstalled from its upstream source (npm package, marketplace, or the employer) rather than redistributed by this package.",
+  "denyBundlesNote": "denyBundles reasons state the category only; the specific internal systems are named in the git-ignored policy.local.json denyReasons map, keyed '<cls>:<name>'."
 }

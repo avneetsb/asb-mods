@@ -193,12 +193,31 @@ test('packaged data carries no machine-specific home paths', () => {
   assert.deepStrictEqual(hits, [], `hardcoded home in: ${hits.join(', ')}`);
 });
 test('packaged data carries no corporate registry/gateway endpoints', () => {
-  const bad = ['/Users/', 'artifactory', 'internal.example', '', 'NPM_INTERNAL_TOKEN', 'gateway-internal'];
+  // The employer vocabulary itself stays off the public tree (policy.json scan.internalTermsFile):
+  // read it from the git-ignored local file when present, else exercise the gate with stand-ins.
+  const termsFile = path.join(REPO, 'shared-core/tooling/policy.local.json');
+  const internalTerms = fs.existsSync(termsFile)
+    ? JSON.parse(fs.readFileSync(termsFile, 'utf8')).internalTerms
+    : ['internal.example', 'registry.internal.example', 'INTERNAL_TOKEN'];
+  const bad = ['/Users/', 'artifactory', ...internalTerms];
+  // Publish channels: `npx github:` ships tracked files, `npm pack` honours .gitignore. Both drop
+  // policy.local.json, so it is screened out of this walk rather than failing it.
+  const ignoredLines = fs
+    .readFileSync(path.join(REPO, '.gitignore'), 'utf8')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith('#'));
+  const publishable = packagedFiles().filter((f) => !ignoredLines.includes(path.relative(REPO, f)));
   const hits = [];
-  for (const f of packagedFiles()) {
+  for (const f of publishable) {
     const t = fs.readFileSync(f, 'utf8');
     for (const tok of bad) if (t.includes(tok)) hits.push(`${path.relative(REPO, f)}: ${tok}`);
   }
+  assert.ok(
+    ignoredLines.includes('shared-core/tooling/policy.local.json'),
+    'policy.local.json must stay git-ignored — that is what keeps the vocabulary out of both publish ' +
+      'channels (tracked files for npx github, .gitignore for npm pack; verified against npm pack output)'
+  );
   assert.deepStrictEqual(hits, [], hits.join(' | '));
 });
 test('packaged data carries no credential values', () => {
