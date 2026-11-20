@@ -266,14 +266,24 @@ test('canonical skills are real content, not placeholders', () => {
     assert.ok(shaped, `${d}/SKILL.md has neither frontmatter name nor a heading`);
   }
 });
-test('no Cursor references remain in packaged data or code', () => {
+test('packaged files name only the three supported agents', () => {
+  // The retired product this guard exists for is spelled from fragments, so its name never appears
+  // anywhere in the package while a reintroduction is still caught.
+  const retiredAgent = new RegExp(`\\b${['cu', 'rso', 'r'].join('')}\\b`, 'i');
   const hits = [];
   for (const f of packagedFiles()) {
+    const rel = path.relative(REPO, f);
+    if (rel.startsWith(path.join('shared-core', 'tooling') + path.sep)) continue; // restored artifacts may legitimately name their host agents
     const t = fs.readFileSync(f, 'utf8');
-    if (path.relative(REPO, f).startsWith(path.join('shared-core', 'tooling') + path.sep)) continue; // restored artifacts may legitimately name their host agents
-    if (/\bcursor\b/i.test(t) && !/retired|historical|removed|dropped/i.test(t)) hits.push(path.relative(REPO, f));
+    if (retiredAgent.test(t) && !/retired|historical|removed|dropped/i.test(t)) hits.push(rel);
   }
-  assert.deepStrictEqual(hits, [], `Cursor still referenced in: ${hits.join(', ')}`);
+  assert.deepStrictEqual(hits, [], `packaged files name a retired agent: ${hits.join(', ')}`);
+  // Positive half: the three supported agents are exactly the ones wired into deployment.
+  const deploy = require('../lib/deploy');
+  assert.deepStrictEqual(Object.keys(deploy.AGENT_SKILL_DIRS).sort(), ['claude', 'codex', 'pi']);
+  assert.deepStrictEqual(Object.keys(deploy.AGENT_PROMPT_DIRS).sort(), ['claude', 'codex', 'pi']);
+  const overrides = JSON.parse(fs.readFileSync(path.join(REPO, 'shared-core/config/agent-overrides.json'), 'utf8'));
+  assert.deepStrictEqual(Object.keys(overrides.agents).sort(), ['claude_code', 'codex', 'pi']);
 });
 test('shell-only adapter generator is gone; JS registration is the only path', () => {
   assert.ok(!fs.existsSync(path.join(REPO, 'shared-core/hooks/generate-adapters.sh')), 'generate-adapters.sh still shipped');
@@ -329,6 +339,19 @@ test('brew inventory is CSV-driven and internally consistent', () => {
   assert.strictEqual(inventory.brew.total, csv.length, 'detected row count != CSV row count');
   assert.strictEqual(inventory.brew.formulae + inventory.brew.casks, inventory.brew.total, 'formulae+casks != total');
   assert.ok(inventory.brew.formulae > 100 && inventory.brew.casks > 10, 'inventory looks truncated');
+});
+test('brew --scope=required considers every non-optional row', () => {
+  // formulae.csv tags rows core|tooling|optional. --scope=required must consider both
+  // non-optional classes: a set naming only aliases silently dropped every core row.
+  const brew = require('../lib/brew');
+  const types = fs.readFileSync(path.join(REPO, 'shared-core/brew/formulae.csv'), 'utf8')
+    .split('\n').filter((l) => l.trim()).slice(1).map((l) => l.split('|')[3]);
+  const expected = types.filter((t) => t !== 'optional').length;
+  assert.ok(expected > 0, 'inventory has no non-optional row to require');
+  const req = brew.plan({ scope: 'required' });
+  const all = brew.plan({ scope: 'all' });
+  assert.strictEqual(req.considered, expected, `required scope considered ${req.considered}, inventory has ${expected} non-optional rows`);
+  assert.ok(req.considered < all.considered, 'required scope should be narrower than all');
 });
 
 // ============================================================ 3. dry run
