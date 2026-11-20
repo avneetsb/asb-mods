@@ -53,7 +53,7 @@
     }
   },
   "retired": {
-    "generate-adapters.sh": "Shell generator removed: it had no pi case, read schema.events while the schema exposed schema.hooks, and its claude/cursor branches only wrote discovery reports. lib/hooks.js registers all three tools for real.",
+    "generate-adapters.sh": "Shell generator removed: it had no pi case, read schema.events while the schema exposed schema.hooks, and its non-pi branches only wrote discovery reports. lib/hooks.js registers all three tools for real.",
     "plugin-cache hooks (ponytail, obsidian-connect, impeccable, gitnexus db probe)": "Removed — they pointed at version-pinned plugin caches under ~/.claude/plugins on one machine, which is exactly the custom tooling phase 3 removes, so registering them guaranteed dangling commands."
   }
 }
