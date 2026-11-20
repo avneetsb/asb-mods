@@ -2,8 +2,9 @@
 
 [← 12 Troubleshooting](12-troubleshooting.md) · [Home](Home.md) · Next: [14 — Contributing](14-contributing.md)
 
-One file, **33 tests**, ~857 lines: `test/install.test.js`. Run it with `npm test` — about **36
-seconds**, no network dependency except the npm registry probe it deliberately tolerates.
+One file, **62 test cases** across 12 sections, 906 lines: `test/install.test.js`. Run it with
+`npm test`; the verdict line at the end reads `62 passed, 0 failed`. No network dependency except the
+npm registry probe, which the suite deliberately tolerates failing.
 
 ```bash
 npm test                                   # the whole suite
@@ -75,6 +76,7 @@ That is the strongest cheap guarantee in the suite: a dry run cannot mutate anyt
 | 16 packaged tooling covers removal contract and restores real | the vendoring parity contract of [page 07](07-personal-tooling-vendoring.md) |
 | 17 source map and dependency map agree packaging contract | `source-map.json` vs the shipped payload do not disagree |
 | 18 brew phase installs formulae and casks right subcommand | `--cask` used for casks, rows (not names) drive install, interactive casks deferred, a report is written |
+| CLI usage guards | `--help`/`-h` print usage without running a phase; unknown command, unknown flag, bad `--scope` and `--agent` all exit 2 and write no state; `--strict` exits 0 on a clean run |
 
 ## Adding a test
 

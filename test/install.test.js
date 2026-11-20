@@ -846,6 +846,55 @@ section('18 brew phase installs formulae and casks with the right subcommand');
 
   fs.rmSync(fx, { recursive: true, force: true });
 }
+section('CLI usage guards — bad usage costs 2 and never runs a phase');
+test('--help prints usage instead of running detection', () => {
+  const r = run(['--help']);
+  assert.strictEqual(r.status, 0, r.out.slice(-400));
+  assert.match(r.out, /Usage: asbmods/);
+  assert.ok(!/Phase 1/.test(r.out), '--help ran a phase');
+});
+test('-h behaves like --help', () => {
+  const r = run(['-h']);
+  assert.strictEqual(r.status, 0, r.out.slice(-400));
+  assert.match(r.out, /Usage: asbmods/);
+});
+test('an unknown command is rejected instead of running detection-only', () => {
+  const r = run(['instal']);
+  assert.strictEqual(r.status, 2, r.out.slice(-400));
+  assert.match(r.out, /unknown command "instal"/);
+  assert.match(r.out, /asbmods help/);
+});
+test('a mistyped flag is rejected instead of silently ignored', () => {
+  const r = run(['--alow-destructive']);
+  assert.strictEqual(r.status, 2, r.out.slice(-400));
+  assert.match(r.out, /unknown flag "--alow-destructive"/);
+});
+test('--scope only accepts its documented values', () => {
+  const r = run(['brew', '--scope=requird']);
+  assert.strictEqual(r.status, 2, r.out.slice(-400));
+  assert.match(r.out, /--scope must be all or required/);
+});
+test('--agent is refused rather than left silently inert', () => {
+  const r = run(['hooks', '--agent=pi']);
+  assert.strictEqual(r.status, 2, r.out.slice(-400));
+  assert.match(r.out, /not implemented/);
+  const bad = run(['hooks', '--agent=quux']);
+  assert.strictEqual(bad.status, 2, bad.out.slice(-400));
+  assert.match(bad.out, /unsupported tools/);
+});
+test('rejected runs leave the state file untouched', () => {
+  const stateFile = statePath('state.json');
+  const before = fs.existsSync(stateFile) ? fs.readFileSync(stateFile, 'utf8') : '';
+  for (const args of [['instal'], ['--nope'], ['hooks', '--agent=pi'], ['brew', '--scope=nope']]) run(args);
+  const after = fs.existsSync(stateFile) ? fs.readFileSync(stateFile, 'utf8') : '';
+  assert.strictEqual(after, before, 'a rejected run wrote state');
+});
+test('--strict exits 0 on a run with no soft failures', () => {
+  const r = run(['--dry-run', '--strict', '--yes', '--no-input', '--probe=false']);
+  assert.strictEqual(r.status, 0, r.out.slice(-400));
+  assert.ok(!/--strict: .* soft failure/.test(r.out), 'a clean dry run reported soft failures');
+});
+
 console.log(`\n${passed} passed, ${failures.length} failed`);
 if (failures.length) {
   console.log(`failed: ${failures.join(', ')}`);

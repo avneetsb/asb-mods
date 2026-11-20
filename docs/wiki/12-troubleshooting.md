@@ -79,18 +79,17 @@ where small, the fix.
 
 | # | Gap | Impact | Workaround / fix |
 | --- | --- | --- | --- |
-| 1 | `--help` and `-h` are not parsed | `asbmods --help` silently runs pre-flight + detection instead of printing help | use the `help` command word. Fix: set `flags.help` in `parseArgv` and short-circuit in `main()` |
-| 2 | `--agent=<a,b>` is parsed but never consumed | you cannot restrict a run to one tool; all three are always processed | no filter exists yet. Fix: thread `flags.agent` into each phase's tool loop |
-| 3 | unknown command words are accepted | `asbmods instal` behaves as "detect and stop" with exit 0, so a typo looks like success | read the Summary block. Fix: validate the command against the known set and exit non-zero |
-| 4 | exit status is 0 for partial runs (removal skipped, brew rows missing, npm packages unavailable) | scripting against `$?` alone misses every soft failure | parse the Summary block or `--json`. Fix: a distinct non-zero code for "completed with refusals" |
-| 5 | unrecognised flags are ignored | `--alow-destructive` is a no-op, and the run looks like it authorised removal | typos are invisible today. Fix: reject unknown `--*` tokens |
-| 6 | brew installs are never uninstalled, npm globals likewise | a payload change can leave stale artifacts on the machine | remove them yourself (`brew remove`, `npm rm -g`). Fix: a `prune` phase diffing manifest vs installed |
-| 7 | `reset` has no `--dry-run` and applies immediately | an unintended replay overwrites current files | rehearsal against `ASB_MODS_HOME=/tmp/…` first; layer-2 backups still exist |
-| 8 | archives are never pruned | disk usage grows with every cutover | prune as described on [page 11](11-update-and-rollback.md#pruning-safely) |
-| 9 | POSIX-only assumptions (`/bin/bash -lc`, `.zshrc`/`.bashrc`/`.zshenv`) | no Windows support; fish/csh get no rc wiring | on Windows use a POSIX shell environment; source the env file manually in fish |
-| 10 | commits are not cryptographically signed | `git log` shows verified-looking authorship without a signature | verify by content and CI, or set `user.signingkey` + `gpg.format=ssh` and re-sign your own commits |
-| 11 | not published to the public registry (`npm view @asbmods/install` → 404) | `npx @asbmods/install` fails; the README's npx route is `github:`-prefixed | publish checklist on [page 15](15-release-and-publishing.md) |
+| 1 | brew installs are never uninstalled, npm globals likewise | a payload change can leave stale artifacts on the machine | remove them yourself (`brew remove`, `npm rm -g`). Fix: a `prune` phase diffing manifest vs installed |
+| 2 | `reset` has no `--dry-run` and applies immediately | an unintended replay overwrites current files | rehearsal against `ASB_MODS_HOME=/tmp/…` first; layer-2 backups still exist |
+| 3 | archives are never pruned | disk usage grows with every cutover | prune as described on [page 11](11-update-and-rollback.md#pruning-safely) |
+| 4 | POSIX-only assumptions (`/bin/bash -lc`, `.zshrc`/`.bashrc`/`.zshenv`) | no Windows support; fish/csh get no rc wiring | on Windows use a POSIX shell environment; source the env file manually in fish |
+| 5 | commits are not cryptographically signed | `git log` shows verified-looking authorship without a signature | verify by content and CI, or set `user.signingkey` + `gpg.format=ssh` and re-sign your own commits |
+| 6 | not published to the public registry (`npm view @asbmods/install` → 404) | `npx @asbmods/install` fails; the README's npx route is `github:`-prefixed | publish checklist on [page 15](15-release-and-publishing.md) |
 
+Per-tool filtering still does not exist: `--agent=<a,b>` is **rejected** (exit 2) rather than
+accepted and ignored, so a run never looks scoped when it is not. Implementing the filter means
+threading a selection through detection, deploy, hooks, brew and env; until that lands, every run
+processes all three agents.
 **Resolved today** (kept here because the fix is behavioural):
 
 - `--scope=required` selected `dependency-type ∈ {direct, required, tooling}` while
@@ -100,6 +99,16 @@ where small, the fix.
 - brew installs iterate manifest **rows**, so a cask is never satisfied by a same-named formula.
 - hook placeholder resolution happens at registration time, so no literal `{{STATE_DIR}}` ships.
 
+- `--help` / `-h` are parsed and short-circuit before pre-flight; previously `asbmods --help`
+  ran detection and exited 0.
+- Unknown command words, unrecognised `--flags` and invalid `--scope` values now exit **2** and
+  name the offending token. `asbmods instal` no longer means "detect and stop with exit 0", and
+  `--alow-destructive` no longer looks like an authorisation that was never granted.
+- `--agent=<a,b>` is rejected with a one-line explanation instead of being silently inert.
+- `--strict` exits **3** when a phase soft-failed — archive incomplete, removal failures, install
+  returned nothing, npm packages unresolvable, brew rows still missing after `--install-brew`, or
+  secrets verification failed. Without it exit 0 still means only "ran to completion", because a
+  skipped removal or an absent agent is the expected outcome of a normal plan run.
 ## Not bugs — by design
 
 | Looks wrong | Is deliberate because |

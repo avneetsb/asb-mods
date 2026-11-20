@@ -67,13 +67,15 @@ it deployed. After hand edits, `asbmods status` is the arbiter — it checks liv
 
 ## Usage odds and ends
 
-**Why does `asbmods --help` run detection instead of printing help?**
-Because `-h`/`--help` are not parsed — swallowed as unknown flags, leaving the command at `all`. Use
-`asbmods help`. It's listed as [known gap 1](12-troubleshooting.md#known-gaps).
+**Does `asbmods --help` run detection?**
+No. `-h`/`--help` are parsed and short-circuit before pre-flight; usage prints and exit is 0, nothing is
+inspected or written. Same text as `asbmods help`.
 
 **Exit code was 0 but nothing happened — bug?**
-Success means "ran to completion". Removal skipped, brew rows missing and npm packages unavailable all
-exit 0. Read the Summary block or `--json`. [Known gap 4](12-troubleshooting.md#known-gaps).
+`0` means "ran to completion": removal skipped, brew rows missing and npm packages unavailable are all
+normal plan outcomes. Read the Summary block or `--json`. For automation pass `--strict`, which turns
+those soft failures into exit `3`; bad usage (unknown command or flag, invalid `--scope`, `--agent`)
+costs exit `2` before anything runs.
 
 **`--scope=required` used to hide 23 core rows — still?**
 Fixed. `formulae.csv` tags rows `core|tooling|optional`, and the required filter only knew
@@ -85,7 +87,9 @@ Because brew's own inventory exports use `|`, so the file round-trips with the t
 367 rows: 273 formulae, 94 casks.
 
 **Is `--agent=pi` supposed to limit the run to pi?**
-It is parsed but currently ignored — all three tools are always processed. [Known gap 2](12-troubleshooting.md#known-gaps).
+No such filter exists, and the flag is now **rejected** (exit 2 with an explanation) rather than parsed
+and ignored, so a run can't look scoped when it isn't. Every run processes all three tools; per-tool
+filtering is the open work item on [page 12](12-troubleshooting.md#known-gaps).
 
 **Why do two runs in a row print different things?**
 Second run reports `up-to-date` instead of `registered`, and zero deploy actions where the first made
@@ -107,7 +111,7 @@ refused precisely so the package never pretends to ship third-party code.
 It is a generated inventory with `generatedAt`, not hand-authored data. Diff it: byte and file-count
 movement is how payload drift becomes visible.
 
-**Why do the wiki pages state literal counts (34, 46, 159, 228, 33)?**
+**Why do the wiki pages state literal counts (46, 159, 367, 62)?**
 Deliberately brittle. If payload or test count drifts, documentation has to change too, which is the
 cheapest available defence against "the docs quietly stopped being true".
 

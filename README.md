@@ -92,7 +92,10 @@ plus `status` (what is deployed, verified) and `reset` (restore what removal too
 
 `--dry-run` · `--yes` · `--allow-destructive` · `--no-input` (CI) · `--scope=required|all` ·
 `--install-brew` · `--limit=N` · `--install-npm` · `--probe=false` · `--rotate-secrets` ·
-`--json` · `--agent=pi,claude,codex` · `--report=<name>`
+`--json` · `--report=<name>` · `--strict` · `--help` / `-h`
+
+Exit codes: `0` ran to completion (a skipped removal or missing brew rows is not an error), `1` fatal,
+`2` bad usage — an unknown command or flag is refused, not ignored — `3` `--strict` plus a soft failure.
 
 Environment overrides: `ASB_MODS_HOME` (target home) and `ASB_MODS_CORE` (source of truth), which
 the functional test suite uses to run the whole destructive flow against a throwaway home.

@@ -25,11 +25,12 @@ The command is the first non-flag argument and defaults to `all`. Invocation for
 | `env` | detect → deploy `shell-env.sh` + wire rc files | |
 | `secrets` | detect → collect secrets | interactive unless `--no-input` |
 | `hooks` | detect → register hooks in all three tools | |
-| `help` | prints usage and exits | see the `--help` caveat below |
+| `help` | prints usage and exits | same text as `--help` / `-h` |
 
-**Unknown command.** A token that matches no known command is accepted, pre-flight and detection run,
-no phase matches, and the run ends after writing `state.json` with that name as `lastPhase`. It is not
-an error today — treat it as "detect and stop". [Known gaps →](12-troubleshooting.md#known-gaps)
+**Unknown command.** A token matching no known command is rejected before pre-flight: exit 2, message
+`unknown command "instal" — known: all, detect, …`. The same check covers mistyped flags, so
+`--alow-destructive` fails loudly instead of running an unauthorised-removal-shaped plan.
+[Known gaps →](12-troubleshooting.md#known-gaps)
 
 ## Flags
 
@@ -47,10 +48,13 @@ an error today — treat it as "detect and stop". [Known gaps →](12-troublesho
 | `--rotate-secrets` | | Re-prompts for variables that already have a value | `lib/secrets.js` |
 | `--json` | | `detect` prints the whole inventory; `status` prints `{ lines, state, archives }` | `install.js` |
 | `--report=<name>` | | For `reset`: which `reports/removal-<stamp>.json` to replay | `lib/restore.js` |
-| `--agent=<a,b>` | | **Parsed but currently inert** — no phase filters on it; all three tools are always processed | — |
+| `--agent=<a,b>` | | **Rejected (exit 2)** — per-tool filtering is not implemented, so the flag is refused instead of being silently inert | `install.js` |
+| `--strict` | | Exits **3** if any phase soft-failed (see [Exit codes](#exit-codes)); without it exit 0 only means the run finished | `install.js` |
+| `--help`, `-h` | | Prints usage and exits 0 before pre-flight or any phase runs. Same text as the `help` command | `install.js` |
 
-Unrecognised flags are ignored rather than rejected, so a typo silently does nothing. Check the
-summary block at the end of a run to confirm what actually happened.
+Unrecognised flags, unknown command words and invalid `--scope` values are rejected with exit 2 and
+the offending token named, so a typo cannot masquerade as an instruction that was never given. The
+summary block at the end of a run is still what tells you what actually happened.
 
 ## Environment variables
 
@@ -67,13 +71,17 @@ summary block at the end of a run to confirm what actually happened.
 
 | Code | Meaning |
 | --- | --- |
-| `0` | Ran to completion — **including** a run where removal skipped, brew had missing rows, or some packages were unavailable. Read the summary, don't infer from status |
+| `0` | Ran to completion — **including** a run where removal skipped, brew had missing rows, or some packages were unavailable (unless `--strict` was passed). Read the summary, don't infer from status |
 | `1` | Fatal: uncaught error (message only, or stack with `ASB_MODS_DEBUG=1`), or `shared-core` missing next to the installer |
+| `2` | Bad usage: unknown command, unrecognised flag, invalid `--scope` value, or `--agent` passed. Nothing was inspected or changed — the check runs before pre-flight |
+| `3` | `--strict` was passed and a phase soft-failed: archive incomplete, removal failures, install returned no actions, npm packages unresolvable, brew rows still missing after `--install-brew`, or secrets verification failed |
 
 ## Reading the output
 
-Log lines are prefixed `[ok]`, `[warn]`, `[error]`, `[..]` (green/yellow/red/cyan on a TTY) and phases
-are separated by `── Phase N — Title ──` banners. The final **Summary** block is the machine-usable
+Log lines are prefixed `[ok]`, `[warn]`, `[error]`, `[..]` and, for the brew missing-row digest, `[dim]`
+(green/yellow/red/cyan/grey on a TTY). Phases are separated by `── Phase N — Title ──` banners. The final
+**Summary** block is the machine-usable part. The numbers below are illustrative — shape and keys are what
+matter:
 part. The numbers below are illustrative — shape and keys are what matter:
 
 ```text
@@ -130,6 +138,8 @@ asbmods reset --report=removal-2026-11-20T02-41-33-507Z.json
 asbmods help      # the usage text, flags and environment variables
 ```
 
-`--help` / `-h` are **not** parsed: they are swallowed as unknown flags and the command stays `all`,
-so `asbmods --help` runs pre-flight and detection instead of printing help. Use the `help` command
-word. [Known gaps →](12-troubleshooting.md#known-gaps)
+`--help` and `-h` are parsed by `parseArgv` and short-circuit in `main()` before pre-flight, so nothing
+is inspected or written when you ask for usage. Anything the parser does not recognise — a command word,
+a `--flag`, an invalid `--scope` value, or `--agent` — exits 2 naming the token, which is also what
+`asbmods instal` now costs instead of silently running detection.
+[Known gaps →](12-troubleshooting.md#known-gaps)

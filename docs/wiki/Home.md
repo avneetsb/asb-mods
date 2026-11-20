@@ -68,7 +68,7 @@ tooling is added, and a stale number in the docs is a bug (see [page 14](14-cont
 | Shared hook definitions | 4, each with pi / claude / codex adapters | `python3 -c "import json;print(list(json.load(open('shared-core/hooks/hooks.json'))['hooks']))"` |
 | Canonical skills | 4 (`caveman`, `gitnexus`, `paseo`, `ponytail`) | `ls shared-core/skills/canonical` |
 | Migrations | 3 entries, each with a backing file | `ls shared-core/config/migrations` |
-| Test suite | 53 assertions reported by `npm test` (32 top-level cases) | `npm test` |
+| Test suite | 62 test cases, verdict line `62 passed, 0 failed` | `npm test` |
 
 ## Start here
 

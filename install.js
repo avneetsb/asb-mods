@@ -76,10 +76,27 @@ Flags
 Environment
   ASB_MODS_HOME   Target home directory (used by the test suite's fixture home)
   ASB_MODS_CORE   Override the shared-core source-of-truth directory
+  XDG_CONFIG_HOME Relocate the state directory (<xdg>/asb-mods)
+
+More flags
+  --strict               Exit 3 when a phase soft-failed: archive incomplete, removal failures,
+                         npm packages unresolvable, brew rows still missing after --install-brew,
+                         or secrets verification failed. Default exit 0 means "ran to completion".
+  --help, -h             This text
+
+Rejected on purpose
+  --agent=<a,b>          Per-tool filtering is not implemented; every run processes all three
+                         agents, so the flag is refused rather than silently ignored.
+
+Exit codes
+  0  ran to completion (a skipped removal or missing brew rows is not an error)
+  1  fatal error, or shared-core missing next to the installer
+  2  bad usage: unknown command, unknown flag, invalid --scope, or --agent passed
+  3  --strict and at least one phase soft-failed
 `;
 
 function parseArgv(argv) {
-  const out = { command: 'all', flags: {} };
+  const out = { command: 'all', flags: { unknown: [] } };
   for (const a of argv) {
     if (a === '--dry-run' || a === '-n') out.flags.dryRun = true;
     else if (a === '--yes' || a === '-y') out.flags.yes = true;
@@ -94,9 +111,40 @@ function parseArgv(argv) {
     else if (a.startsWith('--probe=')) out.flags.probe = a.slice(8) !== 'false';
     else if (a.startsWith('--agent=')) out.flags.agents = a.slice(8).split(',');
     else if (a.startsWith('--report=')) out.flags.reportName = a.slice(9);
+    else if (a === '--help' || a === '-h') out.flags.help = true;
+    else if (a === '--strict') out.flags.strict = true;
     else if (!a.startsWith('-')) out.command = a;
+    else out.flags.unknown.push(a);
   }
   return out;
+}
+
+const KNOWN_COMMANDS = ['all', 'detect', 'archive', 'remove', 'install', 'npm', 'brew', 'env',
+  'secrets', 'hooks', 'status', 'reset', 'help'];
+const KNOWN_AGENTS = ['pi', 'claude', 'codex'];
+
+// Typos must not degrade into a silently different run. `asbmods instal` used to behave as
+// "detect and stop" with exit 0, and `--alow-destructive` looked like authorisation that was
+// never granted. Bad usage now costs 2 and says what was wrong.
+function validateUsage(command, flags) {
+  const problems = [];
+  if (!KNOWN_COMMANDS.includes(command)) {
+    problems.push(`unknown command "${command}" — known: ${KNOWN_COMMANDS.join(', ')}`);
+  }
+  for (const f of flags.unknown || []) problems.push(`unknown flag "${f}" — full list: asbmods help`);
+  if (flags.scope && !['all', 'required'].includes(flags.scope)) {
+    problems.push(`--scope must be all or required (got "${flags.scope}")`);
+  }
+  if (flags.agents && flags.agents.length) {
+    const bad = flags.agents.filter((a) => !KNOWN_AGENTS.includes(a));
+    problems.push(bad.length
+      ? `--agent names unsupported tools: ${bad.join(', ')} (supported: ${KNOWN_AGENTS.join(', ')})`
+      : '--agent is not implemented: every run processes all three agents — drop the flag');
+  }
+  if (!problems.length) return;
+  for (const p of problems) log('err', p);
+  console.log(`  ${C.dim}usage: asbmods [command] [flags] — full text: asbmods help${C.off}`);
+  process.exit(2);
 }
 
 function confirm(question) {
@@ -131,6 +179,7 @@ function writeState(patch) {
 async function main() {
   const { command, flags } = parseArgv(process.argv.slice(2));
   if (command === 'help' || flags.help) { console.log(HELP); return; }
+  validateUsage(command, flags);
 
   const results = {};
 
@@ -258,6 +307,42 @@ async function main() {
 
   banner('Summary');
   printSummary(results);
+
+  if (flags.strict) {
+    const soft = strictFindings(results, flags);
+    if (soft.length) {
+      banner('Strict');
+      for (const s of soft) log('warn', s);
+      console.log(`  ${C.err}--strict: ${soft.length} soft failure(s) → exit 3${C.off}`);
+      process.exit(3);
+    }
+  }
+}
+
+// --strict: "ran to completion" is not good enough for automation. These are the only conditions
+// treated as failures — deliberately narrow, so a skipped removal (no --allow-destructive), an
+// absent agent or plan-only brew does not fail a run that did exactly what was asked.
+function strictFindings(results, flags) {
+  const out = [];
+  if (results.archive && results.archive.dryRun !== true && results.archive.complete === false) {
+    out.push(`archive incomplete: ${(results.archive.incomplete || []).join(', ') || 'no record'}`);
+  }
+  if (results.remove && !results.remove.skipped && results.remove.failedCount > 0) {
+    out.push(`removal failed for ${results.remove.failedCount} artifact(s)`);
+  }
+  if (results.install && results.install.dryRun !== true && !Array.isArray(results.install)) {
+    out.push('install returned no deploy actions');
+  }
+  if (results.npm && results.npm.summary && results.npm.summary.unavailable > 0) {
+    out.push(`npm: ${results.npm.summary.unavailable} manifest package(s) not resolvable`);
+  }
+  if (results.brew && flags.installBrew && results.brew.missingCount > 0) {
+    out.push(`brew: ${results.brew.missingCount} row(s) still missing after install`);
+  }
+  if (results.secrets && results.secrets.verified === false) {
+    out.push('secrets: verification failed (content round-trip or mode 600)');
+  }
+  return out;
 }
 
 function summarize(results) {
