@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "PI Settings",
-  "description": "Unified settings schema asb-mods consolidates from pi, claude, codex, cursor configs",
+  "description": "Unified settings schema asb-mods consolidates from pi, claude, codex configs",
   "type": "object",
   "properties": {
     "defaultProvider": {

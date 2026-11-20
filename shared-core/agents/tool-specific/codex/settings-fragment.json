@@ -1,44 +1,14 @@
 {
-  "_source": "~/.codex/hooks.json + session configuration",
-  "version": "1.0.0",
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks codex UserPromptSubmit; fi",
-        "timeout": 10
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "",
-        "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks codex PreToolUse; fi",
-        "timeout": 10
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "",
-        "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks codex PostToolUse; fi",
-        "timeout": 10
-      }
-    ],
-    "PermissionRequest": [
-      {
-        "matcher": "",
-        "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks codex PermissionRequest; fi",
-        "timeout": 10
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "command": "if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" hooks codex Stop; fi",
-        "timeout": 10
-      }
-    ]
-  },
-  "toolAdapters": "auto-generated from shared-core/hooks/hooks.json",
-  "skills": [],
-  "notes": "Extracted from live codex config"
+  "_note": "Codex keeps its own config.toml; the installer never rewrites it (it holds live model/auth state). Shared hook behaviour for Codex is registered from shared-core/hooks/hooks.json into ~/.codex/hooks.json. The paseo hook commands previously captured here moved to hooks.json so all three tools share one definition.",
+  "version": "2.0.0",
+  "managedFiles": [
+    {
+      "path": "{{HOME}}/.codex/hooks.json",
+      "strategy": "merge, foreign entries preserved"
+    },
+    {
+      "path": "{{HOME}}/.codex/config.toml",
+      "strategy": "preserved, never rewritten"
+    }
+  ]
 }

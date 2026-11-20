@@ -27,15 +27,5 @@
     "hooks": "~/.codex/hooks.json",
     "skills": "~/.codex/skills/",
     "extensions": "codex extension system (auto)"
-  },
-  "cursor": {
-    "cli_config": "~/.cursor/cli-config.json",
-    "mcp": "~/.cursor/mcp.json",
-    "skills": [
-      "~/.cursor/skills/",
-      "~/.cursor/skills-cursor/"
-    ],
-    "extensions": "~/.cursor/extensions/",
-    "argv": "~/.cursor/argv.json"
   }
 }

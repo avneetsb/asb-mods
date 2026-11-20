@@ -2,10 +2,10 @@
   "id": "004",
   "name": "brew-inventory-deployment",
   "from_tool": "homebrew",
-  "to_tool": "asb-mods-install.sh",
+  "to_tool": "asbmods brew",
   "steps": [
     "Export brew list to formulae.csv",
     "Tag type (formula vs cask)",
-    "Run install.sh to validate/install missing packages"
+    "Run `asbmods brew` to plan against formulae.csv, or `asbmods brew --install-brew` to install what is missing"
   ]
 }

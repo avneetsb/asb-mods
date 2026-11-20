@@ -1,0 +1,8 @@
+node_modules/
+.unipi/
+.engram/
+*.log
+.DS_Store
+backups/
+asb-mods-*.tar.gz
+.org-index/

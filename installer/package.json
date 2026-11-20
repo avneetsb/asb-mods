@@ -1,8 +1,0 @@
-{
-  "name": "@asbmods/install",
-  "version": "0.1.0",
-  "description": "asb-mods consolidated tooling installer",
-  "main": "bin/install.js",
-  "bin": { "asbmod-install": "bin/install.js" },
-  "scripts": { "test": "node test/install.test.js" }
-}

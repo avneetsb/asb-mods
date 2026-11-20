@@ -1,102 +1,6 @@
 {
-  "_source": "~/.pi/agent/settings.json",
+  "_note": "Machine-independent subset of the pi settings the installer owns. Excluded on purpose: local provider entries (they carry a per-machine baseUrl + apiKey -> collected by `asbmods secrets`), locally-authored package paths under ~/.agents/packages (not published, so useless on a fresh machine), and provider ids that only resolve on a corporate network.",
   "version": "1.0.0",
-  "defaults": {
-    "defaultProvider": "localllm-omlx",
-    "defaultModel": "Qwen3.6-35B-A3B-oQ8e-mtp",
-    "localllm": {
-      "servers": [
-        {
-          "id": "0jt8y1",
-          "name": "oMLX",
-          "baseUrl": "http://127.0.0.1:1234/v1",
-          "apiKey": "REDACTED-ROTATE-ME",
-          "apiType": "omlx",
-          "models": [
-            {
-              "id": "Qwen3.5-0.8B-oQ8e-mtp",
-              "name": "Qwen3.5-0.8B-oQ8e-mtp",
-              "contextWindow": 262144,
-              "maxTokens": 262074,
-              "reasoning": false,
-              "input": [
-                "text",
-                "image"
-              ],
-              "loaded": false,
-              "sizeBytes": 1076126763
-            },
-            {
-              "id": "Qwen3.6-35B-A3B-oQ8e-mtp",
-              "name": "Qwen3.6-35B-A3B-oQ8e-mtp",
-              "contextWindow": 262114,
-              "maxTokens": 262114,
-              "reasoning": true,
-              "input": [
-                "text",
-                "image"
-              ],
-              "loaded": false,
-              "sizeBytes": 40535237244
-            },
-            {
-              "id": "Qwen3.8-27B-oQ4h-mtp",
-              "name": "Qwen3.8-27B-oQ4h-mtp",
-              "contextWindow": 262144,
-              "maxTokens": 262144,
-              "reasoning": true,
-              "input": [
-                "text",
-                "image"
-              ],
-              "loaded": false,
-              "sizeBytes": 18393360549
-            },
-            {
-              "id": "Qwen3.8-27B-oQ8e-mtp",
-              "name": "Qwen3.8-27B-oQ8e-mtp",
-              "contextWindow": 262114,
-              "maxTokens": 262114,
-              "reasoning": true,
-              "input": [
-                "text",
-                "image"
-              ],
-              "loaded": false,
-              "sizeBytes": 31501724030
-            },
-            {
-              "id": "Qwen3.8-Flash-Next-oQ4e-mtp",
-              "name": "Qwen3.8-Flash-Next-oQ4e-mtp",
-              "contextWindow": 262114,
-              "maxTokens": 262114,
-              "reasoning": true,
-              "input": [
-                "text",
-                "image"
-              ],
-              "loaded": true,
-              "sizeBytes": 113053633738
-            },
-            {
-              "id": "Qwen3.8-Flash-Next-oQ4h-mtp",
-              "name": "Qwen3.8-Flash-Next-oQ4h-mtp",
-              "contextWindow": 262144,
-              "maxTokens": 262144,
-              "reasoning": true,
-              "input": [
-                "text",
-                "image"
-              ],
-              "loaded": false,
-              "sizeBytes": 112944136112
-            }
-          ]
-        }
-      ]
-    }
-  },
-  "models": {},
   "enabledModels": [
     "localllm-omlx/Qwen3.8-Flash-Next-oQ4e-mtp",
     "codex-headroom/gpt-6.1-sol",
@@ -109,9 +13,6 @@
     "codex-headroom/gpt-5.6-sol",
     "codex-headroom/gpt-5.6-terra",
     "codex-headroom/gpt-5.6-luna",
-    "internal-gateway/claude-sonnet-5",
-    "internal-gateway/claude-opus-4-8",
-    "internal-gateway/claude-haiku-4-5",
     "localllm-omlx/Qwen3.6-35B-A3B-oQ8e-mtp",
     "localllm-omlx/Qwen3.8-27B-oQ8e-mtp",
     "localllm-omlx/Qwen3.5-0.8B-oQ8e-mtp",
@@ -119,14 +20,9 @@
     "localllm-omlx/Qwen3.8-27B-oQ4h-mtp"
   ],
   "packages": [
-    "../../.agents/packages/atelier-panel-merger",
     "npm:pi-localllm-provider",
     "npm:pi-permission-modes",
     "npm:pi-hashline-edit-pro",
-    {
-      "source": "npm:pi-one-ui",
-      "themes": []
-    },
     "npm:pi-rtk-optimizer",
     "npm:pi-headroom",
     "npm:pi-caveman",
@@ -136,7 +32,6 @@
     "npm:@dietrichgebert/ponytail",
     "npm:pi-lens",
     "npm:pi-advisor-flow",
-    "../../.agents/packages/widget-fold-on-click",
     "npm:pi-goal-x",
     "npm:@pi-unipi/notify",
     "npm:@abix5/pi-beads",
@@ -150,37 +45,24 @@
     "npm:pi-animations",
     "npm:@vanillagreen/pi-extension-manager",
     "npm:pi-workspace-history",
-    "../../.agents/packages/pi-wf",
     "npm:@sting8k/pi-vcc",
-    "../../.agents/packages/lens-diagnostic-pane",
-    "../../.agents/packages/pi-session-model-sync",
-    "../../.agents/packages/beads-box-widget",
     "npm:@janvitos/pi-better-prompt",
-    "../../.agents/packages/async-agents-box-widget",
-    "../../.agents/packages/pi-session-learnings",
     "npm:@injaneity/pi-computer-use",
     "npm:pi-browser-harness",
-    "../../.agents/packages/pi-thinking-steps-compat",
     "npm:pi-loop-police",
-    "../../.agents/packages/memory-recall-gate",
-    "../../.agents/packages/memory-usage-gate",
-    "../../.agents/packages/subagent-sync-only",
-    "../../.agents/packages/tool-surface-gate",
     "npm:@scriptdude/pi-promptimize",
-    "git:https://github.com/hasit/pi-community-themes",
     "npm:@narumitw/pi-stamp",
     "npm:@buyong/pi-codex-computer-use"
   ],
   "extensions": [
     "-builtin:mcp"
   ],
-  "mcpAdapters": {},
   "toolCallDefaults": {
     "maxTokens": null,
     "timeout": null
   },
-  "promptOverwrite": null,
-  "claudeMdPath": "/Users/example/.claude/CLAUDE.md",
-  "codexHooks": "/Users/example/.codex/hooks.json",
-  "notes": "Extracted from live pi config. Run install.sh to update."
+  "crossAgent": {
+    "claudeMdPath": "{{HOME}}/.claude/CLAUDE.md",
+    "codexHooks": "{{HOME}}/.codex/hooks.json"
+  }
 }

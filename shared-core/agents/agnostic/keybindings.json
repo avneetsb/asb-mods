@@ -26,7 +26,6 @@
     "description": "MCP tool invocation syntax varies by agent",
     "pi": "Direct function call (tools.bash, tools.read, etc.)",
     "claude_code": "XML-style tags <bash>, <read>",
-    "codex": "Function calls via adapter",
-    "cursor": "Native command palette + function execution"
+    "codex": "Function calls via adapter"
   }
 }

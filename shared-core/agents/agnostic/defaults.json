@@ -1,5 +1,5 @@
 {
-  "_description": "Agent-agnostic defaults shared across pi, Claude Code, Codex, and Cursor",
+  "_description": "Agent-agnostic defaults shared across pi, Claude Code and Codex",
   "version": "1.0.0",
   "code_search": {
     "preferred_tool": "ripgrep (rg)",

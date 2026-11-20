@@ -15,17 +15,6 @@
       ]
     },
     {
-      "id": "002",
-      "name": "claude-plugins-to-cursor-skills",
-      "from_tool": "claude-code",
-      "to_tool": "cursor",
-      "steps": [
-        "Map cavecrew/ponytail plugins to skills-cursor format",
-        "Ensure SKILL.md has proper trigger instructions",
-        "Update MCP server references (github issues \u2192 local paths)"
-      ]
-    },
-    {
       "id": "003",
       "name": "env-vars-consolidation",
       "from_tool": "multiple",
@@ -41,12 +30,13 @@
       "id": "004",
       "name": "brew-inventory-deployment",
       "from_tool": "homebrew",
-      "to_tool": "asb-mods-install.sh",
+      "to_tool": "asbmods brew",
       "steps": [
         "Export brew list to formulae.csv",
         "Tag type (formula vs cask)",
-        "Run install.sh to validate/install missing packages"
+        "Run `asbmods brew` to plan against formulae.csv, or `asbmods brew --install-brew` to install what is missing"
       ]
     }
-  ]
+  ],
+  "_note": "Every entry here has a backing file in shared-core/config/migrations/ \u2014 verified by the test suite, so the registry cannot accumulate dead references."
 }

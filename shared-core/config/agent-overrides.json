@@ -46,13 +46,9 @@
     },
     "claude_code": {
       "model": "opus",
-      "api_key_helper": "npx --offline @internal-scope/claude-code-token get_token",
-      "base_url": "https://gateway.internal.example/llmgatewaysvc/v1/anthropic",
+      "credential_source": "collected at install time: ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL live in {{STATE_DIR}}/env/secrets.env (never in this package)",
       "hooks": {
-        "PreToolUse": "rtk hook claude + gitnexus + ccstatusline",
-        "UserPromptSubmit": "gitnexus + ccstatusline + hindsight",
-        "SessionStart": "verify-tools.sh + hindsight-sessionstart-hook",
-        "Stop": "paseo-hooks + hindsight-stop-hook"
+        "_hooks": "defined once in shared-core/hooks/hooks.json and registered into ~/.claude/settings.json by lib/hooks.js"
       },
       "skills": [
         "graphify",
@@ -74,25 +70,6 @@
         "PostToolUse": "paseo-hooks",
         "PermissionRequest": "paseo-hooks",
         "Stop": "paseo-hooks"
-      },
-      "permissions": {
-        "allow": [
-          "Shell(ls)"
-        ],
-        "deny": []
-      }
-    },
-    "cursor": {
-      "mcp_servers": {
-        "obsidian-connect-readwrite": "https://mcp.internal.example/mcp/groups/example-user/obsidian-connect-readwrite",
-        "gitnexus": "/Users/example/.local/bin/gitnexus mcp"
-      },
-      "editor": {
-        "vimMode": false
-      },
-      "display": {
-        "zenMode": true,
-        "showLineNumbers": false
       },
       "permissions": {
         "allow": [
