@@ -1,0 +1,155 @@
+# 06 — shared-core reference
+
+[← 05 Code components](05-components-lib.md) · [Home](Home.md) · Next: [07 — Vendoring personal tooling](07-personal-tooling-vendoring.md)
+
+`shared-core/` **is** the payload: everything Phase 4 deploys, and every fact Phases 5–7 act on.
+It is data plus two shell scripts — no code imports it at runtime except through the phase modules.
+
+```text
+shared-core/
+├── agents/agnostic/{defaults,keybindings,source-map}.json      reference cards (not deployed as config)
+├── agents/tool-specific/{pi,claude,codex}/settings-fragment.json   merged into live settings
+├── config/{settings-schema,agent-overrides,migrations}.json    validation + per-agent cards + migrations
+├── config/agent-overrides/{pi,claude_code,codex}.json
+├── config/migrations/001-pi-hooks-to-claude-hooks.json         003-env-vars-consolidation.json
+│                                                              004-brew-inventory-deployment.json
+├── env/{shell-env.sh,secrets.env.template}
+├── hooks/hooks.json + hooks/bin/{asb-env-check.sh,asb-secrets-check.sh}
+├── npm/{manifest.json,.npmrc}
+├── brew/{formulae.csv,deps.json}
+├── prompts/master/asb-mods-standards.md + prompts/adapters/{pi,claude,codex}.md
+├── skills/canonical/{caveman,gitnexus,paseo,ponytail}/SKILL.md
+└── tooling/{policy.json,policy.local.json*,manifest.json,…}    → page 07
+```
+
+`policy.local.json` is gitignored (`~/.agents/config-backups/**`-style local override, see page 07).
+
+## `agents/agnostic/` — the three reference cards
+
+| File | Top-level keys | Role |
+| --- | --- | --- |
+| `defaults.json` | `_description`, `version`, `code_search`, `commit_style`, `shell_envars`, `package_management` | Tool-agnostic policy: which search tool to prefer, commit-message style, env-var conventions, package-manager rules. Deployed by `deployAgnostic()` as a readable document, **not** merged into any agent's settings |
+| `keybindings.json` | `_description`, `common_shortcuts`, `mcp_tool_access` | Shortcut conventions shared across the three tools, plus how MCP tools are addressed |
+| `source-map.json` | `_description`, `pi`, `claude_code`, `codex`, `shared_state` | Maps each concept (skills, prompts, hooks, settings) to where it lives per tool. This is the file to read when porting something between agents |
+
+`_description` keys are annotations: `stripNonSettingsKeys` drops any key matching
+`/^(_|purpose$|installInstructions$|notes$|_description$)/` before a fragment reaches a live config.
+
+## `agents/tool-specific/*/settings-fragment.json` — Phase 4 merge
+
+One fragment per agent. `deploySettings()` merges each into the live file with `mergeInto`:
+
+| Agent | Target | Behaviour when target missing |
+| --- | --- | --- |
+| pi | `~/.pi/agent/settings.json` | warns `pi settings.json not found — skipped`, records nothing destructive |
+| Claude Code | `~/.claude/settings.json` | warns `claude settings.json not found — skipped` |
+| Codex | `~/.codex/config.toml` | **never written.** Recorded as `{ action: 'preserved', reason: 'TOML config holds live model/auth state; asb-mods writes hooks.json instead' }` |
+
+Merge semantics (arrays as sets for `packages` / `extensions`, replacement elsewhere, changes recorded
+only when the serialisation differs): [page 05](05-components-lib.md#libdeployjs--phase-4). A test
+asserts every fragment key exists in `config/settings-schema.json` → `properties`, so a fragment
+cannot invent settings silently.
+
+## `config/`
+
+- **`settings-schema.json`** — `$schema`, `title`, `description`, `type`, `properties`. The whitelist
+  that fragments are validated against, and the documentation of what asb-mods considers legal settings.
+- **`agent-overrides.json`** — `_description`, `version`, `agents` keyed exactly `pi`, `claude_code`,
+  `codex` (asserted by the suite). The registry of which agent has which deliberate deviation.
+- **`agent-overrides/<agent>.json`** — per-agent reference cards: model pin, credential source note,
+  MCP registration path, package list. `pi.json` names the local inference provider and model id, the
+  `~/.pi/agent/mcp-adapter.json` registration file and the installed pi package set. These cards are
+  **documentation of intent**, not deployment input — the values that actually ship come from
+  fragments, `env/`, and what you type at Phase 6.
+- **`migrations.json`** + `migrations/*.json` — `_description`, `version`, `migrations`, `_note`;
+  three recorded migrations: `001-pi-hooks-to-claude-hooks.json`, `003-env-vars-consolidation.json`,
+  `004-brew-inventory-deployment.json` (number `002` was retired; the sequence is not renumbered, so a
+  gap is expected). Each migration file records what moved from where to where — read them before
+  hand-editing anything the installer owns.
+
+## `env/`
+
+**`shell-env.sh`** — deployed to `<state-dir>/env/shell-env.sh` and sourced from a marked block in
+`.zshrc`, `.bashrc`, `.zshenv`. It exports the machine-independent contract every tool in this package
+expects (13 variables):
+
+```text
+SSL_CERT_FILE  REQUESTS_CA_BUNDLE  CURL_CA_BUNDLE          TLS trust for Node + Python tooling
+PI_DEFAULT_PROVIDER  PI_DEFAULT_MODEL  LOCALLLM_OMLX_BASE_URL  pi model pin + endpoint
+PI_PERMISSION_MODE                                          default permission mode
+MNEMOSYNE_LLM_BASE_URL  MNEMOSYNE_LLM_MODEL  MNEMOSYNE_LLM_EXTRA_BODY  MNEMOSYNE_MCP_BANK
+ENGRAM_DATA_DIR                                               memory store location
+RTK_DB_PATH                                                   shell-output filter database
+```
+
+Secrets are deliberately absent — they live only in `secrets.env` (mode 600). [Page 09 →](09-secrets-and-env.md)
+
+**`secrets.env.template`** — the prompt script. Each entry is a comment line (becomes the hint shown
+at the prompt) followed by `NAME=placeholder`. `templateVars()` parses it into
+`{ name, placeholder, hint }`; names matching `KEY|TOKEN|SECRET|PASSWORD|PASSPHRASE|CREDENTIAL` are
+prompted with masked input.
+
+## `hooks/`
+
+**`hooks.json`** — the single source of hook truth:
+
+| Key | Contents |
+| --- | --- |
+| `version`, `description` | schema version and intent |
+| `placeholders` | `{{HOME}}`, `{{STATE_DIR}}`, `{{CORE}}` — resolved by `flatten()` at registration time |
+| `hooks` | the four shipped hooks (below) |
+| `retired` | why removed generators/hooks are gone; read-only documentation |
+
+| Hook name | `when` | `trigger_event` | Purpose |
+| --- | --- | --- | --- |
+| `session_style_reminder` | `on_user_prompt` | `UserPromptSubmit` | injects the terse-answer style rule |
+| `environment_preflight` | `on_session_start` | `SessionStart` | runs `bin/asb-env-check.sh` to surface missing env/TLS setup |
+| `secrets_hygiene` | `on_stop` | `Stop` | runs `bin/asb-secrets-check.sh` to catch secrets about to be written into tracked files |
+| `paseo_terminal_display` | `post_tool_use` | `PostToolUse` | keeps terminal agent state visible |
+
+**`hooks/bin/`** — `asb-env-check.sh`, `asb-secrets-check.sh`. Deployed by `deployHookBin()` (mode
+755) into the state dir; hook commands reference them through `{{STATE_DIR}}`, never through a repo path.
+Registration mechanics, per-tool wiring and the pi extension adapter: [page 10](10-hooks-reference.md).
+
+## `npm/`
+
+**`manifest.json`** — `_description`, `version`, `packages[14]`, `global_install_command`.
+`global_install_command` is literally `npm i -g pi-one-ui@latest … @buyong/pi-codex-computer-use@latest`.
+
+| Package | Purpose | Package | Purpose |
+| --- | --- | --- | --- |
+| `pi-one-ui` | single-file deployment utility | `pi-advisor-flow` | advisor flow for pi |
+| `pi-localllm-provider` | local LLM provider for pi | `@abix5/pi-beads` | task tracking (beads) |
+| `pi-hashline-edit-pro` | enhanced hashline editing | `pi-btw` | side conversations |
+| `ccstatusline` | Claude Code status line | `pi-animations` | TUI animations |
+| `pi-subagents` | subagent orchestration | `@sting8k/pi-vcc` | session compaction |
+| `pi-browser-harness` | browser automation | `@janvitos/pi-better-prompt` | better prompt UX |
+| `@narumitw/pi-stamp` | timestamp utility | `@buyong/pi-codex-computer-use` | computer use for Codex |
+
+**`.npmrc`** — `registry=https://registry.npmjs.org/` plus a comment stating that no private-registry
+or scoped auth config ships in this package (that belongs in the developer's own `~/.npmrc`).
+
+## `brew/`
+
+**`formulae.csv`** — **pipe-delimited**, columns `name|type|version|dependency-type|used-by`,
+367 rows: type `formula` 273 / `cask` 94; dependency-type `optional` 339 / `core` 23 / `tooling` 5.
+Parsed by `detect.parseFormulae()` (shared with Phase 1), planned by `lib/brew.js`.
+
+**`deps.json`** — the reverse map for the tooling that actually needs brew: keys
+`pi-coding-agent`, `rtk`, `graphify`, `node`, `gitnexus`, `git-lfs`, `ripgrep`, plus `_stats`.
+Each value names the formula/cask and why it is needed, so a missing binary can be explained without
+reading `formulae.csv`.
+
+## `prompts/` and `skills/canonical/`
+
+- **`prompts/master/asb-mods-standards.md`** — the canonical standards text.
+- **`prompts/adapters/{pi,claude,codex}.md`** — per-agent renderings of the same rules, deployed into
+  each agent's prompt directory (`AGENT_PROMPT_DIRS`: pi → `~/.pi/agent/prompts`, claude →
+  `~/.claude/…`, codex → `~/.codex/…`).
+- **`skills/canonical/{caveman,gitnexus,paseo,ponytail}/SKILL.md`** — canonical skill content,
+  deployed to every agent's skill directory (`AGENT_SKILL_DIRS`, same three agents). The suite
+  requires each to exist, exceed 500 bytes and carry either a frontmatter `name:` or a top-level heading,
+  so a placeholder can never ship as a "skill".
+
+Vendored third-party-style tooling (extensions, packages, scripts, other skills) is a separate tree
+with its own policy: [page 07](07-personal-tooling-vendoring.md).

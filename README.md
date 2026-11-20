@@ -6,8 +6,9 @@ hooks, prompts, scripts, env config and the Homebrew inventory — across **thre
 live inside the package: nothing on the target machine is required except Node 18+ (and Homebrew,
 if you want the brew phase to install rather than plan).
 
-Cursor is no longer supported; the Cursor adapters, skills and migration that used to ship here
-were removed along with the tool itself.
+Everything else is documented in the **[wiki](docs/wiki/Home.md)**: architecture, each installer
+phase, the CLI reference, every `shared-core` data file, the vendoring policy, the protection
+model, secrets handling, hooks, updates and rollbacks, testing, contributing and troubleshooting.
 
 ## Install
 
