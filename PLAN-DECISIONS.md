@@ -103,6 +103,37 @@ listed in `lib/payload.js` `UNREAD`, because deployment walks `skills/canonical/
 and doc-to-fixture path matching is done without regexes — escaping left `<project-slug>` literal, which
 presented as a missing fixture rather than a broken matcher. Suite at **102 passed / 0 failed**.
 
+## D8 — P13: the dependents question is asked of Homebrew, and it has no override (2026-11-22)
+
+**Decision.** `lib/ledger.js` plan() asks Homebrew itself (`brew uses --installed <formula>`, via
+`lib/brew.js` `dependentsOf`) for every present brew formula, and a formula with dependents is held
+back. Committed `cc1d843`, closing §5 row 37 and §10 `P13`.
+**Rejected.** (a) An override flag — the agent-CLI and runtime-prerequisite hold-backs are *our*
+inconvenience and say which flag waives them; breaking someone else's toolchain is not a preference.
+(b) A dependency table we maintain — the shim test deliberately deletes a dependent's marker and
+requires the formula to become removable again, which only a live manager answer can satisfy. (c) A
+batched reverse map from `brew info --json=v2 --formula --installed` — measured here, it returned 178
+formulae in 0.9 s but listed only *direct* dependents (5 of the 7 `brew uses` gave for `openssl@3`,
+4 of 48 for `ca-certificates`), i.e. it under-reports and would have let exactly the removals through
+that this slice exists to stop.
+**Claims — with their evidence.** Against this machine's real Homebrew, read-only in a scratch home:
+`sqlite` held back naming 29 dependents, `ripgrep` (none) offered for removal. Verified behaviour now
+written into both source comment and wiki 04: exit code is 0 for *every* case including an unknown
+name, so `No available formula with the name "…"` on stderr is the only thing separating "nothing
+depends on it" from "Homebrew has never heard of it", and unknown fails closed.
+**Residual, deliberately not removed.** At ~0.74 s per query a 367-row inventory cannot be checked row
+by row, so one plan asks at most 60 (`DEPENDENCY_CHECK_CAP`) and the unasked rows are held back as
+`dependents not checked this run` rather than offered. Coverage in bulk plans is therefore capped and
+*stated*, never silent. Nothing here changes locking or single-writer (that is still limitation 37's
+neighbour in §5 row 38 / F8).
+**Process notes from this slice.** Two assertion bugs in my own new test failed the first run (I
+expected 4 held rows for a cask-containing fixture, and typed `4 installed package(s)` for a 6-dependent
+message) — the production code was right and I fixed the test, not the other way round. The brew shim
+now answers `uses --installed` from marker files and reproduces brew's unknown-name shape (exit 0 +
+stderr warning) because "empty stdout" is ambiguous in real Homebrew and a shim that only returned
+dependents would have hidden that. One pre-existing assertion moved to a delta count: it asserted one
+uninstall report existed globally, and the new tests legitimately write their own.
+
 ## Findings from the caliper-harness study, and where each stands
 
 The read-only caliper-harness study checkout — its location is deliberately not recorded here, since a personal absolute path is exactly what the leak screens below refuse; plan §6 holds the analysis. Status is
@@ -129,7 +160,7 @@ per `git log`, the code and the suite at HEAD, not per intention.
 | F18 | Memory surfaces unmanaged and unprotected | P13-docs/O8 | **Fixed for removal** (`PROTECT_NAMES`); recording/compaction still open (O6) |
 | F19 | Shared skills must reach all three hosts identically | T24/P8 | Partial — canonical skills deploy to three hosts and are asserted; lock-free registry open |
 | F20 | Runtime layout undocumented | P13-docs | Open — will be wiki 18 |
-| F21 | Brew removal ignores dependents (limitation 37) | P13 | Open — the plan's actual P13; `brew uses --installed` gate pending |
+| F21 | Brew removal ignores dependents (limitation 37) | P13 | **Done** — `cc1d843`: dependents asked of Homebrew, no override flag; bulk coverage capped at 60 queries and the cap is stated |
 
 ## Reading rules, since this file is public
 
