@@ -29,6 +29,8 @@ marketplaces, npm globals, Homebrew) is reinstalled from upstream, not redistrib
 | [14 — Contributing](14-contributing.md) | Dev loop, patch shape, documentation rules, review checklist |
 | [15 — Release and publishing](15-release-and-publishing.md) | Version, tags, `npm publish` preconditions, post-publish verification |
 | [16 — FAQ](16-faq.md) | Short answers to the questions this repo always gets |
+| [17 — Agent memory surfaces](17-agent-memory-surfaces.md) | Every instruction/memory path per host, who writes it, and what this package deliberately never touches |
+| [18 — Per-agent outcome](18-per-agent-outcome.md) | What changes on pi vs Claude Code vs Codex CLI, what works out of the box on each, and the mechanism behind every gap |
 
 ---
 

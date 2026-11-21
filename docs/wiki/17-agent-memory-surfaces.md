@@ -80,13 +80,19 @@ caliper-harness study (`.harness/findings.json` F8) showed the version that does
 loopback HTTP server owns the store and answers every host over `127.0.0.1`, with direct file writes
 reserved for migration and repair under a held lock.
 
-That privacy is deliberate. What *is* shared across the three hosts sits one level up: `shared-core/npm/manifest.json`
-installs the memory components (engram, Mnemosyne) once into the npm prefix all three hosts call, and
-`shared-core/mcp/servers.json` — specified in plan §2, not shipped at 0.3.0 — will point one server
-definition at all of them. A recollection saved through one host's tools is then readable from another's,
-while each runtime's own note format stays private. This package installs and registers those components;
-it does not implement their storage, and the run lock covers **our** writes only: two agents writing the
-same store through their own tools is still limitation 37's open half, which §2's single-writer server answers.
+That privacy is deliberate, and what *is* shared across the three hosts needs naming precisely — an earlier
+revision of this page claimed `shared-core/npm/manifest.json` "installs the memory components (engram,
+Mnemosyne)", which the manifest itself contradicts: it installs 14 packages into the one npm prefix all
+three hosts call, and they are pi-side extensions plus a statusline utility. What this package actually
+ships for engram and Mnemosyne is their **pi side** — `engram-project-pin.ts`,
+`engram-review-on-compaction.ts`, `memory-recall-gate`, `memory-usage-gate` — plus the scripts that prove
+cross-session recall works. The servers are installed and run by whoever operates them, so in 0.3.x a
+recollection is shared between hosts only when both hosts are configured to reach the same running server;
+`shared-core/mcp/servers.json`, specified in plan §2 and **not shipped at 0.3.0**, is what will point one
+server definition at all three. Either way this package does not implement memory storage, and the run lock
+covers **our** writes only: two agents writing the same store through their own tools is still limitation
+37's open half, which §2's single-writer server answers. See [page 18](18-per-agent-outcome.md) for what
+that means per host out of the box.
 
 ## What asb-mods does and does not do
 
