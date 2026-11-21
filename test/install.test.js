@@ -924,7 +924,16 @@ function runPoor(args, opts = {}) {
   if (r.error) throw r.error;
   return { status: r.status, out: `${r.stdout || ''}${r.stderr || ''}` };
 }
-const doctorJson = (out) => JSON.parse(out.slice(out.indexOf('{\n'), out.lastIndexOf('}') + 1));
+// doctor --json speaks the §8 O2 envelope now (`{verb, ok, checks[], summary, exitCode}`), and the
+// assertions below are about prerequisite *rows*, so they read the envelope's checks into that shape.
+// Nothing here accepts a second dialect: the envelope itself is asserted in its own section further down.
+const doctorJson = (out) => {
+  const env = JSON.parse(out.trim());
+  return {
+    ok: env.ok,
+    rows: env.checks.map((c) => ({ name: c.name, ok: c.verdict === 'pass', detail: c.detail, fix: c.fix })),
+  };
+};
 let poorDoc = null;
 const poorDoctor = () => (poorDoc = poorDoc || runPoor(['doctor', '--json']));
 
@@ -2037,7 +2046,116 @@ test('P8 read-only verbs and --dry-run are never locked out by a running install
   }
 });
 
+section('O2 — one envelope for every verb a machine reads (finding F10)');
+
+const ENVELOPE_KEYS = ['verb', 'ok', 'checks', 'summary', 'exitCode'];
+const CHECK_KEYS = ['name', 'verdict', 'detail', 'fix'];
+
+// The §12 trim kept the envelope honest by keeping it small: one object, no run id, no nonce. What it does
+// promise is that a consumer never scrapes a table, so these tests are mostly about the object *being*
+// parseable — which is the property that silently rots when someone adds a warning line to stdout.
+function parseSingleJson(out, what) {
+  const start = out.indexOf('{\n');
+  assert.ok(start >= 0, `${what} printed no JSON object: ${out.slice(0, 240)}`);
+  const head = out.slice(0, start).trim();
+  assert.ok(head === '', `${what} printed prose before its JSON object: ${head.slice(0, 200)}`);
+  try {
+    return JSON.parse(out.slice(start));
+  } catch (e) {
+    assert.fail(`${what} is not one JSON object (${e.message}); tail: ${out.slice(-200)}`);
+  }
+}
+
+test('O2: the envelope schema in wiki 05 is the schema the code emits', () => {
+  // A documented contract nobody compares against is a rumour. This is the coupling that F10 says was
+  // missing: the page described dialects, and each verb emitted its own.
+  const doc = fs.readFileSync(path.join(PKG, 'docs/wiki/05-components-lib.md'), 'utf8');
+  const block = doc.match(/```json envelope\n([\s\S]*?)```/);
+  assert.ok(block, 'docs/wiki/05 lost its "```json envelope" schema block, so the contract is undocumented');
+  const documented = Object.keys(JSON.parse(block[1])).sort();
+  assert.deepStrictEqual(documented, ENVELOPE_KEYS.slice().sort(),
+    `wiki 05 documents ${JSON.stringify(documented)} but the reporter builds ${JSON.stringify(ENVELOPE_KEYS.slice().sort())}`);
+
+  for (const args of [['doctor', '--json'], ['status', '--json'], ['verify-core', '--json']]) {
+    const env = parseSingleJson(run(args).out, `asbmods ${args.join(' ')}`);
+    for (const k of ENVELOPE_KEYS) assert.ok(k in env, `${args[0]} envelope has no "${k}" key the docs promise`);
+    assert.strictEqual(env.verb, args[0], `${args[0]} names a different verb in its own envelope`);
+    for (const c of env.checks) {
+      assert.deepStrictEqual(Object.keys(c).sort(), CHECK_KEYS.slice().sort(),
+        `${args[0]} emitted a check row that is not {name, verdict, detail, fix}: ${JSON.stringify(c)}`);
+    }
+  }
+});
+
+test('O2: ok means exactly "zero non-pass checks", and the exit code follows it', () => {
+  // Both a rich and a crippled machine, because a green-only fixture proves nothing about the failing path
+  // that CI actually depends on.
+  for (const r of [run(['doctor', '--json']), poorDoctor(), run(['status', '--json'])]) {
+    const env = parseSingleJson(r.out, 'envelope');
+    assert.strictEqual(env.ok, env.checks.every((c) => c.verdict === 'pass'),
+      `ok is not defined by its own checks: ok=${env.ok} verdicts=${env.checks.map((c) => c.verdict)}`);
+    assert.strictEqual(env.exitCode, env.ok ? 0 : 1, 'exitCode disagrees with ok');
+    assert.strictEqual(r.status, env.exitCode, `the process exited ${r.status} while its envelope said ${env.exitCode}`);
+  }
+  const poor = parseSingleJson(poorDoctor().out, 'poor machine');
+  assert.ok(poor.checks.some((c) => c.verdict !== 'pass'), 'the crippled-PATH fixture reported everything as pass');
+  const failing = poor.checks.filter((c) => c.verdict !== 'pass');
+  assert.ok(failing.every((c) => typeof c.fix === 'string'), 'a check row has no fix field at all');
+});
+
+test('O2: a mutating verb keeps its progress output and ends stdout with exactly one envelope', () => {
+  // The opposite choice — swallowing phase output so stdout is pure JSON — would hide what an install is
+  // doing while it does it, so the trailer convention is the contract instead.
+  const r = run(['--dry-run', '--json']);
+  assert.match(r.out, /Phase 1 — Detect/, 'a --dry-run silenced its phase output');
+  const start = r.out.lastIndexOf('\n{\n');
+  assert.ok(start >= 0, `no envelope trailer at the end of stdout: ${r.out.slice(-240)}`);
+  const env = JSON.parse(r.out.slice(start + 1));
+  assert.strictEqual(env.verb, 'all');
+  // Phase 1 already prints the detect inventory as its own JSON object, so the promise a consumer needs is
+  // not "exactly one object on stdout" but "exactly one *envelope*, and it is the last thing printed".
+  const envelopes = r.out.match(/^\{\n {2}"verb"/gm) || [];
+  assert.strictEqual(envelopes.length, 1, `stdout carried ${envelopes.length} envelopes, not one`);
+  assert.ok(env.checks.length >= 3, `a whole pipeline reported ${env.checks.length} checks`);
+  const verdicts = env.checks.map((c) => c.verdict);
+  assert.ok(verdicts.includes('skipped'), `a --dry-run claimed phases were ${verdicts.join(',')} instead of skipped`);
+  assert.strictEqual(env.summary.dryRun, true, 'the summary does not say the run changed nothing');
+});
+
+test('O2: the reporter refuses invented verdicts, and per-host counters keep their documented keys', () => {
+  const rep = require(path.join(PKG, 'lib/report.js'));
+  assert.throws(() => rep.check('x', 'probably-fine', 'detail'), /unknown verdict/,
+    'a verdict outside the enum was accepted, so consumers cannot rely on it');
+  const env = rep.envelope({ verb: 't', checks: [rep.check('a', 'pass', ''), rep.check('b', 'fail', 'why', 'do this')] });
+  assert.strictEqual(env.ok, false);
+  assert.strictEqual(env.exitCode, 1);
+  assert.deepStrictEqual(env.summary, { checks: 2, passed: 1, failed: 1 });
+  assert.strictEqual(env.hosts, undefined, 'hosts appeared without a source, which a reader would take for zeros');
+  assert.deepStrictEqual(
+    rep.hostCounters({ discovered: 4, applied: 2, heldBack: 1, failed: 0, unverified: 1 }),
+    { discovered: 4, applied: 2, held_back: 1, failed: 0, unverified: 1 },
+    '§8 O2 names five per-host counters; the wire key is held_back');
+});
+
+test('O2: a suite that ran zero tests cannot report success', () => {
+  const guard = require(path.join(PKG, 'scripts/require-tests.cjs'));
+  assert.throws(() => guard.assertTestsRan({ passed: 0, failed: 0 }), /zero tests ran/);
+  assert.strictEqual(guard.assertTestsRan({ passed: 12, failed: 0 }), 12);
+  assert.strictEqual(guard.assertTestsRan({ passed: 0, failed: 1 }), 1, 'failing tests must count as having run');
+  const cli = cp.spawnSync(process.execPath, [path.join(PKG, 'scripts/require-tests.cjs'), '0', '0'], { encoding: 'utf8' });
+  assert.strictEqual(cli.status, 1, `the CI form exited ${cli.status} for a zero-test run`);
+  assert.match(cli.stderr, /zero tests ran/);
+});
+
 console.log(`\n${passed} passed, ${failures.length} failed`);
+// A run that executed nothing is a broken suite, not a green one (§8 O2, §5 limitation 30): "0 failed"
+// is otherwise readable as success by exactly the CI jobs that only look at the exit code.
+try {
+  require(path.join(PKG, 'scripts/require-tests.cjs')).assertTestsRan({ passed, failed: failures.length });
+} catch (err) {
+  console.error(`[zero-test] ${err.message}`);
+  process.exit(1);
+}
 if (failures.length) {
   console.log(`failed: ${failures.join(', ')}`);
   console.log(`fixture kept for inspection: ${ROOT}`);

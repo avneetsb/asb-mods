@@ -18,6 +18,50 @@
 | `status(flags)` | Read-only verification: 14 checks, each `[ok]`/`[warn]`, ending `N/M checks green`; `--json` supported |
 | error handler | Prints `[fatal] <message>`; stack with `ASB_MODS_DEBUG=1`; exit 1 |
 
+## The verification envelope — `lib/report.js` (slice `O2`, finding F10)
+
+Before this module, `--json` meant three different things: `doctor` dumped its raw probe rows, `status`
+printed `{lines, state, archives}`, `verify-core` built a good object inline, and the mutating verbs printed
+nothing machine-readable at all. Finding F10 called that out: anything consuming asb-mods had to know which
+verb spoke which dialect. Now one module builds one shape, and the block below is **compared against the
+real CLI by a test** (`O2: the envelope schema in wiki 05 is the schema the code emits`) — a documented
+contract nobody compares against is a rumour.
+
+```json envelope
+{ "verb": "doctor",
+  "ok": false,
+  "checks": [ { "name": "Homebrew", "verdict": "fail", "detail": "not on PATH", "fix": "asbmods --install-prereqs" } ],
+  "summary": { "checks": 8, "passed": 7, "failed": 1 },
+  "exitCode": 1 }
+```
+
+| Field | Meaning |
+| --- | --- |
+| `verb` | The command that produced it, exactly as typed (`doctor`, `status`, `verify-core`, or the phase-running command such as `all`) |
+| `ok` | **Exactly one thing:** zero checks whose `verdict` is not `pass`. Not a health score, not a severity judgement |
+| `checks[]` | `{name, verdict, detail, fix}` — `verdict` ∈ `pass` \| `fail` \| `warn` \| `skipped` (the reporter throws on anything else, so a consumer can switch on it); `fix` is the command that resolves the row or `""`, never an absent key |
+| `summary` | `{checks, passed, failed}` from the reporter, plus whatever the verb adds (`missing`, `green`/`total`, phase tallies) |
+| `exitCode` | The code the process exits with. It follows `ok` by construction, which is why no page has to explain the exit code in prose |
+
+Verb-specific extras are merged at the **top level** rather than nested (`core` and `inventory` on
+`verify-core`, `state`/`archives`/`lines` on `status`, `catalogError` on `doctor`) so consumers written
+against 0.3.x keep working. `hosts` — §8's per-host `{discovered, applied, held_back, failed, unverified}` —
+appears only for a verb that actually has the data; it is omitted rather than zero-filled, because a zero
+reads as "looked and found nothing" while an absence reads as the truth: "this verb did not look".
+
+| Symbol | Contract |
+| --- | --- |
+| `check(name, verdict, detail, fix)` | Builds one row; **throws** on a verdict outside the four |
+| `envelope({verb, checks, summary, hosts, extra})` | Computes `ok` and `exitCode` from the checks — a caller cannot pass its own opinion of either |
+| `fromRow(row)` / `fromLine(line)` | Adapts `prereqs.probe()` rows and `status`'s `[label, detail, ok]` triples |
+| `hostCounters({discovered, applied, heldBack, failed, unverified})` | Maps to the wire spelling (`held_back` with an underscore) |
+| `emit(flags, env, prose, opts)` | On `--json`: a check verb prints **only** the object (prose suppressed by the caller, not appended after); a mutating verb passes `{trailer: true}` and prints the object *after* its progress output, because silencing an install to feed a parser would hide what the run is doing while it does it |
+
+The §12 trim kept this small on purpose: no nonce, no run id, no stale-report anti-forgery. That machinery
+answers a threat this package does not face — caliper's checker executes untrusted third-party tests, ours
+run in our own fixture homes — and carrying it would have cost a write per run for no change in what a
+reader can conclude.
+
 ## `lib/paths.js` — path resolution
 
 Single place that decides where anything lives. `PKG_ROOT = resolve(__dirname, '..')`, so

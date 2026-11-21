@@ -33,6 +33,7 @@ const payload = require('./lib/payload');
 const agentsmod = require('./lib/agents');
 const ledger = require('./lib/ledger');
 const lock = require('./lib/state-lock');
+const report = require('./lib/report');
 
 const COLOR = process.stdout.isTTY && !process.env.NO_COLOR;
 const C = COLOR
@@ -274,9 +275,18 @@ async function main() {
   // doctor is read-only and must not run pre-flight, detection or any phase: it answers
   // "can this machine host the package?" and exits 1 when it cannot.
   if (command === 'doctor') {
-    banner('Doctor — prerequisites (read-only)');
-    const verdict = prereqs.doctor(flags, log);
-    process.exit(verdict.ok ? 0 : 1);
+    // `--json` means exactly one object and no prose, so the human rendering is suppressed rather than
+    // printed next to a second dialect. The rows come from the same probe as before; the envelope is what
+    // a machine reads, and `ok` is zero non-pass checks and nothing else.
+    const verdict = prereqs.doctor({ json: false }, flags.json ? () => {} : log);
+    const doc = report.envelope({
+      verb: 'doctor',
+      checks: verdict.rows.map(report.fromRow),
+      summary: { missing: verdict.rows.filter((r) => !r.ok).map((r) => r.name) },
+      extra: { catalogError: verdict.catalogError || null },
+    });
+    if (flags.json) console.log(JSON.stringify(doc, null, 2));
+    process.exit(doc.exitCode);
   }
 
   // verify-core is read-only payload integrity: it answers "is the payload I am about to deploy the
@@ -291,12 +301,13 @@ async function main() {
       for (const c of v.checks) log(c.verdict === 'pass' ? 'ok' : 'err', `${c.name} — ${c.detail}${c.fix ? `  fix: ${c.fix}` : ''}`);
     }
     const failures = v.checks.filter((c) => c.verdict !== 'pass').length;
-    const envelope = {
-      verb: 'verify-core', ok: failures === 0, core: P.CORE, inventory: v.inventory,
-      checks: v.checks, summary: v.summary, exitCode: failures ? 1 : 0,
-    };
-    if (flags.json) console.log(JSON.stringify(envelope, null, 2));
-    else log(failures ? 'err' : 'ok', `${v.summary.entries} hashed file(s): ${v.summary.missing} missing, ${v.summary.changed} changed, ${v.summary.untracked} untracked`);
+    const envelope = report.envelope({
+      verb: 'verify-core', checks: v.checks, summary: v.summary,
+      extra: { core: P.CORE, inventory: v.inventory },
+    });
+    // Built by the reporter rather than by hand: the literal this replaces omitted `ok` altogether and
+    // then exited on `process.exit(undefined)` — zero — for a corrupted payload.
+    report.emit(flags, envelope, () => log(failures ? 'err' : 'ok', `${v.summary.entries} hashed file(s): ${v.summary.missing} missing, ${v.summary.changed} changed, ${v.summary.untracked} untracked`));
     process.exit(envelope.exitCode);
   }
 
@@ -489,6 +500,49 @@ async function main() {
   banner('Summary');
   printSummary(results);
 
+  // `--json` on a mutating verb keeps its progress output — silencing an install to feed a parser would
+  // hide what the run is doing while it does it — and ends stdout with exactly one envelope object.
+  // Verdicts are derived from the same facts the human Summary block prints, so the two readings of a run
+  // cannot disagree. exitCode is the code this run actually exits with, which is why --strict's decision
+  // is folded in rather than left to prose.
+  if (flags.json) {
+    const s = summarize(results);
+    const soft = strictFindings(results, flags);
+    const firstTrue = (...cases) => { for (const [cond, v] of cases) if (cond) return v; return 'warn'; };
+    const checks = [];
+    if (s.archive !== undefined) {
+      checks.push(report.check('archive', firstTrue([s.archive === 'complete', 'pass'], [s.archive === 'dry-run', 'skipped'], [true, 'fail']), `archive: ${s.archive}`));
+    }
+    if (s.removed !== undefined) {
+      const v = firstTrue([typeof s.removed === 'string', 'skipped'], [results.remove.failedCount > 0, 'fail'], [true, 'pass']);
+      checks.push(report.check('remove', v, `removed: ${s.removed}`, results.remove.failedCount > 0 ? 'asbmods remove --allow-destructive --yes (see reports/ for the refused rows)' : ''));
+    }
+    if (s.installedActions !== undefined) {
+      checks.push(report.check('install', s.installedActions === 'dry-run' ? 'skipped' : 'pass', `${s.installedActions} deploy action(s) from ${P.CORE}`));
+    }
+    if (s.npm !== undefined) checks.push(report.check('npm', 'pass', JSON.stringify(s.npm)));
+    if (s.prereqs !== undefined) {
+      const p = String(s.prereqs);
+      checks.push(report.check('prerequisites', firstTrue([p.startsWith('refused'), 'fail'], [/^(declined|checked)|^would install/.test(p), 'skipped'], [true, 'pass']), `prerequisites: ${p}`, p.startsWith('refused') ? 'asbmods doctor' : ''));
+    }
+    if (s.agents !== undefined) checks.push(report.check('agent CLIs', s.agents.failed ? 'fail' : 'pass', JSON.stringify(s.agents)));
+    if (s.brew !== undefined) checks.push(report.check('brew', s.brew.missing ? 'warn' : 'pass', `${s.brew.present} present, ${s.brew.missing} missing`, s.brew.missing ? 'asbmods brew --install-brew' : ''));
+    if (s.secretsVerified !== undefined) {
+      checks.push(report.check('secrets', firstTrue([s.secretsVerified === true, 'pass'], [s.secretsVerified === false, 'fail'], [true, 'skipped']), `secrets verified: ${s.secretsVerified}`, s.secretsVerified === false ? 'asbmods secrets' : ''));
+    }
+    if (s.hooks !== undefined) {
+      const skipped = s.hooks.filter((h) => h.includes(':skipped'));
+      checks.push(report.check('hooks', skipped.length ? 'warn' : 'pass', s.hooks.join(', '), skipped.length ? 'the skipped rows name their reason (usually that host is not installed here)' : ''));
+    }
+    if (!checks.length) checks.push(report.check('phases', 'skipped', `${command} produced no phase results`));
+    const env = report.envelope({
+      verb: command, checks,
+      summary: Object.assign({}, s, { dryRun: !!flags.dryRun, softFindings: soft }),
+    });
+    env.exitCode = flags.strict && soft.length ? 3 : 0;
+    report.emit(flags, env, null, { trailer: true });
+  }
+
   if (flags.strict) {
     const soft = strictFindings(results, flags);
     if (soft.length) {
@@ -564,7 +618,9 @@ function printSummary(results) {
 }
 
 function status(flags) {
-  banner('Status');
+  // A machine reading this gets exactly one object and no prose, which is the whole reason §8 `O2`
+  // exists: a consumer should never have to dig a document out of a banner.
+  if (!flags.json) banner('Status');
   const state = X.readJSON(P.STATE_FILE, null);
   const inv = X.readJSON(path.join(P.STATE_DIR, 'inventory.json'), null);
   const archives = archiver.listArchives();
@@ -611,13 +667,29 @@ function status(flags) {
   const codexTagged = JSON.stringify(codexHooks.hooks || {}).includes(hookreg.MARK);
   lines.push(['codex hooks registered', codexTagged ? 'asb-mods entries found' : 'no asb-mods entries', codexTagged]);
 
-  for (const [k, v, ok] of lines) console.log(`  ${C[ok ? 'ok' : 'warn']}${ok ? '[ok]  ' : '[warn]'}${C.off}${k.padEnd(24)} ${v}`);
+    if (!flags.json) for (const [k, v, ok] of lines) console.log(`  ${C[ok ? 'ok' : 'warn']}${ok ? '[ok]  ' : '[warn]'}${C.off}${k.padEnd(24)} ${v}`);
 
-  if (inv) console.log(`\n  ${C.dim}last inventory: ${inv.summary.removableCount} removable / ${inv.summary.protectedCount} protected${C.off}`);
-  if (state) console.log(`  ${C.dim}last run: ${state.updatedAt} (${state.lastPhase})${C.off}`);
-  if (flags.json) console.log(JSON.stringify({ lines: lines.map(([k, v, ok]) => ({ k, v, ok })), state, archives }, null, 2));
+  if (!flags.json) {
+    if (inv) console.log(`\n  ${C.dim}last inventory: ${inv.summary.removableCount} removable / ${inv.summary.protectedCount} protected${C.off}`);
+    if (state) console.log(`  ${C.dim}last run: ${state.updatedAt} (${state.lastPhase})${C.off}`);
+  }
   const failing = lines.filter(([, , ok]) => !ok).length;
-  console.log(`\n  ${failing ? C.warn : C.ok}${lines.length - failing}/${lines.length} checks green${C.off}`);
+  // The envelope is what a machine reads. `state`, `archives` and the raw `lines` are merged at the TOP
+  // level by the reporter (not nested), because consumers written against 0.3.x read them from there and
+  // relocating them silently would break them for no gain.
+  const env = report.envelope({
+    verb: 'status',
+    checks: lines.map(report.fromLine),
+    summary: { green: lines.length - failing, total: lines.length },
+    extra: { state, archives, lines: lines.map(([k, v, ok]) => ({ k, v, ok })) },
+  });
+  if (flags.json) console.log(JSON.stringify(env, null, 2));
+  if (!flags.json) console.log(`\n  ${failing ? C.warn : C.ok}${lines.length - failing}/${lines.length} checks green${C.off}`);
+  // Exit code follows the envelope only when a machine asked to consume it: `status` has always been
+  // informational for humans (a red check on a fresh machine is not a failed command), and changing that
+  // silently would turn every operator's `asbmods status` into a false alarm. With --json the code is
+  // part of the contract, because that is the whole point §8 `O2` makes — CI must not scrape tables.
+  if (flags.json) process.exit(env.exitCode);
 }
 
 main().catch((err) => {
