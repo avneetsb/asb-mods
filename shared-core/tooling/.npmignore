@@ -1,0 +1,7 @@
+# Machine-local vendoring policy: internal product vocabulary that must never reach a published
+# artifact. The root .npmignore names it too, but package.json's `files` allowlist takes precedence
+# over root ignore rules for everything inside a listed directory — measured here: with the allowlist
+# in place and no file like this one, `npm pack` put policy.local.json back into the tarball. A nested
+# ignore is still consulted inside an allowlisted directory, so this file is what actually keeps it out,
+# and scripts/check-pack-coverage.cjs fails if it ever appears in the artifact.
+policy.local.json

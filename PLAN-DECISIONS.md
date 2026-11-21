@@ -134,6 +134,42 @@ stderr warning) because "empty stdout" is ambiguous in real Homebrew and a shim 
 dependents would have hidden that. One pre-existing assertion moved to a delta count: it asserted one
 uninstall report existed globally, and the new tests legitimately write their own.
 
+## D9 — §1 packaging contract: an allowlist, a payload-integrity refusal, two npm facts that changed files (2026-11-22)
+
+**Decision.** `package.json` gets a `files` allowlist; `scripts/check-pack-coverage.cjs` runs inside
+`npm test` and compares four things that had never been compared — the allowlist, the artifact `npm pack`
+actually produces, `shared-core/MANIFEST.sha256`, and the tarball file count wiki 15 quotes; and
+`install.js` pre-flight refuses with exit 1 when the inventory lists a file that is absent.
+**Rejected.** (a) Keeping `.npmignore`-only packaging: it defines an artifact by omission and states
+nothing about which trees are load-bearing. (b) Making a *missing inventory* fatal too — a fixture home or
+a vendored copy legitimately has none, so that would convert a safety net into a new failure mode (§5 row
+32's pattern); it warns instead. (c) Keeping `npm/.npmrc` and merely passing `--userconfig`: the file
+cannot ship under that name at all, so wiring it would have made an npm call depend on a path no artifact
+contains.
+**Two measured facts, each of which moved a file.** (1) A `files` allowlist **takes precedence over the
+root `.npmignore`** inside a listed directory: naming `shared-core/` re-admitted
+`shared-core/tooling/policy.local.json` — machine-local internal vocabulary — into the artifact. The fix is
+the nested `shared-core/tooling/.npmignore` (nested ignores are still consulted inside an allowlisted
+directory), verified by packing with and without it. (2) npm will not pack a file named `.npmrc` whatever
+`files` says, so the payload's public-registry statement was in the inventory and silently absent from every
+artifact; it is `shared-core/npm/registry.conf` now, `lib/npmpkgs.js` no longer claims to hand it to npm,
+and it is listed in `payload.js` `UNREAD`. The exclusion rules are centralised in `skipPath()`, which the
+check imports, so payload and packaging cannot drift into two different definitions.
+**Claims, with their evidence.** `npm test` → **108 passed / 0 failed**; gates: token lint (194 files, 59
+placeholders), `MANIFEST.sha256 matches the tree (196 files)`, `[pack-coverage] ok — 240 files`. Guard
+reproduced before and after: `install.js --dry-run` against a copied payload with `hooks/hooks.json`
+deleted exits 1, names `shared-core/hooks/hooks.json`, and writes no state; with `MANIFEST.sha256` deleted
+the same run warns `integrity cannot be checked` and exits 0. Docs corrected against measurement: wiki 15's
+tarball row claimed **233 files while `npm pack` produced 241** — nothing had ever compared them — and the
+replacement row now says which number is machine-checked and which is not: packed bytes drifted
+506,912 → 507,246 → 508,928 B across three consecutive packs here, so bytes/shasum/integrity are explicitly
+*not* an artifact identity.
+**Scope honesty.** This is the packaging half of §1. The §1 paths that belong to other slices —
+`lib/mcp.js`, `shared-core/mcp/servers.json`, `shared-core/toolchain/tools.json`, `lib/state.js`,
+`lib/render/*`, `test/{unit,phase,e2e}/` — do not exist yet, so `sec01-layout` stays open; `PLAN_ONE_PATHS`
+in the new check registers the payload ones among them, so each slice inherits the packaging guarantee the
+moment it lands a file rather than having to remember to ask for one.
+
 ## Findings from the caliper-harness study, and where each stands
 
 The read-only caliper-harness study checkout — its location is deliberately not recorded here, since a personal absolute path is exactly what the leak screens below refuse; plan §6 holds the analysis. Status is

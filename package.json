@@ -6,6 +6,17 @@
   "bin": {
     "asbmods": "./install.js"
   },
+  "files": [
+    "install.js",
+    "bootstrap.sh",
+    "lib/",
+    "shared-core/",
+    "scripts/",
+    "docs/",
+    "DEPENDENCY-MAP.json",
+    "README.md",
+    "PLAN-DECISIONS.md"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/avneetsb/asb-mods.git"
@@ -20,7 +31,8 @@
   "scripts": {
     "lint:payload-tokens": "node scripts/check-payload-tokens.cjs",
     "manifest": "node tools/make-manifest.js",
-    "test": "node scripts/check-payload-tokens.cjs && node tools/make-manifest.js --check && node test/install.test.js"
+    "check:pack": "node scripts/check-pack-coverage.cjs",
+    "test": "node scripts/check-payload-tokens.cjs && node tools/make-manifest.js --check && node scripts/check-pack-coverage.cjs && node test/install.test.js"
   },
   "keywords": [
     "pi",

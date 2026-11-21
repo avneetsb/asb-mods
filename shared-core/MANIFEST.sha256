@@ -20,9 +20,9 @@ f84f8b6b8e2c94df017a883639d023fe35c69bc8170e89ec6d05240518672215  ./env/shell-en
 d633f0fd216d4373eebfa0b444d734a77cac6f6401fe0fb82a3f5070c7e0e84d  ./hooks/bin/asb-env-check.sh
 a4dff9b7de9c398fb3204b1bd8ea188203b6386fc9a8d47c5906e5c2a9bceeb7  ./hooks/bin/asb-secrets-check.sh
 ace940fa575fd0b277cf2db60f94407025a1d4c089ff15e50a5bb447863f95e9  ./hooks/hooks.json
-e375256a7490edefb4523224f5415009b290573a8150b017310ef77999e1b0ef  ./npm/.npmrc
 9dcdf1284063dce78f44451149ffe2c6461be516b7982df141c533bf3cf8f913  ./npm/agents.json
 445e01ad1f52e0fef7c0f3aa9d55c576ed7ef403d5078225e2710c88b4536ce4  ./npm/manifest.json
+e375256a7490edefb4523224f5415009b290573a8150b017310ef77999e1b0ef  ./npm/registry.conf
 b4e71f13cf8ea0ca3d24503b3f6a410c0c6a9498543575ea11d24ce94078d417  ./prompts-sync-guide.md
 af1658210028e3921efbd00b37a25c3493e93c3f0d1732f39e8e085e53087b22  ./prompts/adapters/claude.md
 1020a54685a404803cf5ffa6fd34d3688b3be55ea90b8f6f44d145d83ffd5751  ./prompts/adapters/codex.md
@@ -194,4 +194,3 @@ c54acd7ff3fd629a1b6779d8a875b7a428c943fe68d088d50d03e21d84e59593  ./tooling/pi/p
 fe7f770c1199b3a2a195796919865450b417af1efa92582d7176b79b68600a73  ./tooling/pi/packages/working-line-rate-off/README.md
 52150e5b726e59489cc0214a5cde6f927bac91c472b59a5f6a4d9d1561072137  ./tooling/pi/packages/working-line-rate-off/test/strip-test.mjs
 fd2f4f0c9a2a29c876b76cf60a9a4959aa50f2f690e54f2c647d57d689ccb3dd  ./tooling/policy.json
-036edb8363372e63a25570aa7914b2eb31f289bbb8b33182918abe866dc6f596  ./tooling/policy.local.json

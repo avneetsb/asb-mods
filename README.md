@@ -220,7 +220,7 @@ shared-core/
                             migrations.json, migrations/
   env/                      shell-env.sh, secrets.env.template
   hooks/                    hooks.json (4 definitions x 3 tools), bin/ hook scripts
-  npm/                      manifest.json (14 packages), .npmrc (public registry only)
+  npm/                      manifest.json (14 packages), agents.json, registry.conf (public-registry statement)
   prompts/master/           canonical prompt files, deployed to every agent
   prompts/adapters/         per-agent placement notes (documentation)
   tooling/                    vendored personal tooling: policy.json sets scope, manifest.json is the inventory

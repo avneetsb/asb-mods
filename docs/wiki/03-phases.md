@@ -26,6 +26,20 @@ Before any pipeline phase: Node major ≥ 18; `git --version` (its absence disab
 not archiving); `shared-core` present next to the installer — **missing it exits 1**, because there
 is no meaningful partial run; target home directory reported (flagged when `ASB_MODS_HOME` overrides it).
 
+Payload integrity is checked here too, because a package can be present and still incomplete. The
+inventory in `shared-core/MANIFEST.sha256` is walked and **any listed file that is absent exits 1** before
+a phase runs, naming up to six missing paths and both remedies — re-extract the artifact, or regenerate the
+inventory with `node tools/make-manifest.js` if this payload was edited deliberately. Refusing rather than
+continuing is the point: every phase assumes the inventory it reads is complete, so a half-extracted
+package would register hooks from a missing `hooks.json` or plan a brew phase from a missing CSV and then
+report a finished run. A payload with **no** inventory at all only warns — `verify-core` calls that
+unverifiable, and a hand-written payload (a fixture home, a vendored copy) may legitimately have none, so
+making it fatal would turn a safety net into a new failure mode.
+
+The same comparison runs at release time in `scripts/check-pack-coverage.cjs`, which is where a payload
+file that npm cannot ship (it strips dotfile config names such as `.npmrc` whatever `files` says) gets
+caught: in the suite, rather than on a stranger's half-installed machine.
+
 ## Phase 0 — prerequisites (`lib/prereqs.js`, `lib/agents.js`)
 
 Nothing in the package can run without Node, and until recently nothing in it could *get* Node

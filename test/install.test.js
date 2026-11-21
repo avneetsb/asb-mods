@@ -1822,6 +1822,74 @@ test('PLAN-DECISIONS.md cannot silently shrink again (it was lost once)', () => 
   assert.match(t, /Limitation [Nn]umber|§5 limitation|limitation 3\d/, 'the log stopped citing the plan limitation rows it answers to');
 });
 
+section('§1 packaging contract — the artifact is what the payload promises');
+
+test('package.json names the runtime trees instead of relying on .npmignore', () => {
+  const cov = require(path.join(PKG, 'scripts/check-pack-coverage.cjs'));
+  const pkg = JSON.parse(fs.readFileSync(path.join(PKG, 'package.json'), 'utf8'));
+  assert.ok(Array.isArray(pkg.files) && pkg.files.length,
+    'no files[] array: the artifact is defined by whatever .npmignore fails to exclude');
+  for (const t of cov.REQUIRED_TREES) {
+    assert.ok(pkg.files.some((f) => f.replace(/\/$/, '') === t.replace(/\/$/, '')), `files[] does not name ${t}`);
+  }
+});
+
+test('§1 pack coverage check bites: dropped payload file, re-admitted local vocabulary, drifted doc count', () => {
+  // Injected inventories, so each failure mode is proven without four more `npm pack` runs. The real
+  // comparison against the real artifact is a gate in npm test itself.
+  const cov = require(path.join(PKG, 'scripts/check-pack-coverage.cjs'));
+  const pkg = JSON.parse(fs.readFileSync(path.join(PKG, 'package.json'), 'utf8'));
+  const mk = (files) => ({ files, size: 1024, name: '@asbmods/install', version: '9.9.9' });
+  const libFile = cov.filesOnDisk(PKG, 'lib/')[0];
+  assert.ok(libFile, 'no files found under lib/ — the check would be vacuous');
+
+  const dropped = cov.check({ repoDir: PKG, pkg, inventory: mk(['package.json']), docText: '| Tarball shape | 1 files |' });
+  assert.ok(!dropped.ok, 'an artifact containing one file passed a completeness check');
+  assert.ok(dropped.problems.some((p) => p.includes(libFile) && /not in the tarball/.test(p)),
+    `a payload file missing from the artifact was not reported: ${JSON.stringify(dropped.problems.slice(0, 3))}`);
+
+  const leaky = cov.check({ repoDir: PKG, pkg, inventory: mk(['shared-core/tooling/policy.local.json']), docText: '| Tarball shape | 1 files |' });
+  assert.ok(leaky.problems.some((p) => /forbidden pattern/.test(p) && p.includes('policy.local.json')),
+    `machine-local vocabulary in the artifact was not reported: ${JSON.stringify(leaky.problems.slice(0, 3))}`);
+
+  const drifted = cov.check({ repoDir: PKG, pkg, inventory: mk(['a', 'b', 'c']), docText: '| Tarball shape (re-measure) | 999 files |' });
+  assert.ok(drifted.problems.some((p) => /says 999 tarball files/.test(p)),
+    `a doc claim 333x the artifact passed: ${JSON.stringify(drifted.problems.slice(0, 3))}`);
+
+  const thin = cov.check({ repoDir: PKG, pkg: { files: ['lib/'] }, inventory: mk([]), docText: '' });
+  assert.ok(thin.problems.some((p) => /does not name shared-core\//.test(p)),
+    `an allowlist missing a runtime tree was not named: ${JSON.stringify(thin.problems.slice(0, 3))}`);
+});
+
+test('§1 pre-flight refuses a package whose inventory lists a file the artifact does not contain', () => {
+  // A real payload with one file pulled out, not a hand-written manifest: the guard reads the same
+  // inventory verify-core does, so the fixture is that file's own output.
+  const fx = fs.mkdtempSync(path.join(os.tmpdir(), 'asbmods-partial-'));
+  const core = path.join(fx, 'core');
+  fs.cpSync(path.join(PKG, 'shared-core'), core, { recursive: true });
+  fs.rmSync(path.join(core, 'hooks', 'hooks.json'));
+  const runPartial = (args) => cp.spawnSync(process.execPath, [path.join(PKG, 'install.js'), ...args], {
+    cwd: PKG, encoding: 'utf8', input: '', timeout: 240000,
+    env: { ...process.env, ASB_MODS_HOME: path.join(fx, 'home'), XDG_CONFIG_HOME: path.join(fx, 'xdg'), ASB_MODS_CORE: core, NO_COLOR: '1' },
+  });
+
+  const r = runPartial(['--dry-run']);
+  const out = `${r.stdout}${r.stderr}`;
+  assert.strictEqual(r.status, 1, `a package missing a listed payload file proceeded anyway: ${out.slice(-400)}`);
+  assert.match(out, /package is incomplete/);
+  assert.ok(out.includes('shared-core/hooks/hooks.json'), `the refusal must name the absent path: ${out.slice(-300)}`);
+  assert.ok(!fs.existsSync(path.join(fx, 'xdg', 'asb-mods', 'state.json')), 'the refused run wrote state anyway');
+
+  // A payload with no inventory is the opposite case: warned about, never fatal, because a hand-written
+  // payload (a fixture home, a vendored copy) legitimately has none and the guard must not become a
+  // new way to fail a working install.
+  fs.rmSync(path.join(core, 'MANIFEST.sha256'));
+  const bare = runPartial(['--dry-run']);
+  const bout = `${bare.stdout}${bare.stderr}`;
+  assert.strictEqual(bare.status, 0, `a payload with no inventory was refused instead of warned: ${bout.slice(-400)}`);
+  assert.match(bout, /integrity cannot be checked/);
+});
+
 console.log(`\n${passed} passed, ${failures.length} failed`);
 if (failures.length) {
   console.log(`failed: ${failures.join(', ')}`);

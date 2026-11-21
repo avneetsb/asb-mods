@@ -15,20 +15,27 @@ shared-core/
 │                                                              004-brew-inventory-deployment.json
 ├── env/{shell-env.sh,secrets.env.template}
 ├── hooks/hooks.json + hooks/bin/{asb-env-check.sh,asb-secrets-check.sh}
-├── npm/{manifest.json,.npmrc}
+├── npm/{manifest.json,agents.json,registry.conf}
 ├── brew/{formulae.csv,deps.json}
 ├── prompts/master/asb-mods-standards.md + prompts/adapters/{pi,claude,codex}.md
 ├── skills/canonical/{caveman,gitnexus,paseo,ponytail}/SKILL.md
 └── tooling/{policy.json,policy.local.json*,manifest.json,…}    → page 07
 ```
 
-`policy.local.json` is gitignored (`~/.agents/config-backups/**`-style local override, see page 07).
+`policy.local.json` is gitignored (`~/.agents/config-backups/**`-style local override, see page 07), and is
+kept out of the packaged inventory and the tarball as well — by the root `.npmignore` *and* a nested
+`shared-core/tooling/.npmignore`, since a `files` allowlist would otherwise re-admit it (page 15).
 
 ## Who reads what, and the packaged inventory (`MANIFEST.sha256`)
 
-Every file under this directory ships in the tarball, so two facts about it are asserted by tests
-rather than trusted:
-
+Everything the packaged inventory lists ships in the tarball — `scripts/check-pack-coverage.cjs` compares
+the inventory against the artifact `npm pack` actually produces, and the installer refuses to run when a
+listed file is absent (see page 03's pre-flight). Two classes are deliberately *not* in the inventory,
+named by `skipPath()` in `lib/payload.js`: machine-local files (`tooling/policy.local.json`, which must
+never be published) and ignore machinery (`shared-core/tooling/.npmignore`), because npm strips dotfile
+config names from a tarball whatever `files` says and an inventory entry the artifact cannot carry would
+be a false promise. With that settled, two facts about the payload are asserted by tests rather than
+trusted:
 **One owner per path.** `lib/payload.js` declares, for each payload path, the single module that
 deploys or applies it (plus the modules that merely inspect it — `lib/detect.js` reports on
 everything it can find, which is not ownership). For the vendored `tooling/` tree ownership is proven
@@ -153,8 +160,13 @@ Registration mechanics, per-tool wiring and the pi extension adapter: [page 10](
 | `pi-browser-harness` | browser automation | `@janvitos/pi-better-prompt` | better prompt UX |
 | `@narumitw/pi-stamp` | timestamp utility | `@buyong/pi-codex-computer-use` | computer use for Codex |
 
-**`.npmrc`** — `registry=https://registry.npmjs.org/` plus a comment stating that no private-registry
-or scoped auth config ships in this package (that belongs in the developer's own `~/.npmrc`).
+**`registry.conf`** — `registry=https://registry.npmjs.org/` plus a comment stating that no private-registry
+or scoped auth config ships in this package (that belongs in the developer's own `~/.npmrc`). It is a
+statement of policy that tests can read, **not** a file any npm call consumes: npm installs resolve through
+the machine's own configuration, which is why `lib/payload.js` lists it under `UNREAD`. It is called
+`registry.conf` rather than `.npmrc` because `npm pack` will not put a file named `.npmrc` in an artifact
+no matter what `files` says — and an inventory that promises a path the tarball cannot contain is worse
+than no inventory.
 
 ## `npm/agents.json` — where the agent CLIs come from
 

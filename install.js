@@ -209,6 +209,21 @@ function preflight() {
   checks.push(['home target', X.isDir(P.HOME), P.HOME + (process.env.ASB_MODS_HOME ? ' (overridden)' : '')]);
   for (const [name, ok, detail] of checks) log(ok ? 'ok' : 'warn', `${name}: ${detail}`);
   if (!X.isDir(P.CORE)) { log('err', 'package is broken: shared-core missing next to the installer'); process.exit(1); }
+  // A payload with listed files missing refuses instead of proceeding. Every phase downstream assumes
+  // the inventory it reads is complete, so a half-extracted package would deploy hooks whose definitions
+  // are absent, or plan a brew phase from a CSV that isn't there, and still report a finished run. The
+  // remedy names both causes because they need different fixes: a truncated artifact versus a payload
+  // edited on purpose.
+  const integrity = payload.missingPayloadFiles(P.CORE);
+  if (integrity.missing.length) {
+    const shown = integrity.missing.slice(0, 6).map((r) => `shared-core/${r}`).join('\n  ');
+    const more = integrity.missing.length > 6 ? `\n  and ${integrity.missing.length - 6} more` : '';
+    log('err', `package is incomplete: ${integrity.missing.length} of ${integrity.listed} files listed in ${payload.MANIFEST_NAME} are absent:\n  ${shown}${more}`);
+    log('err', 're-extract the package, or if this payload was edited deliberately run `node tools/make-manifest.js` to regenerate the inventory');
+    process.exit(1);
+  } else if (!integrity.verifiable) {
+    log('warn', `no ${payload.MANIFEST_NAME} in ${P.CORE}: payload integrity cannot be checked before installing (verify-core reports the same as unverifiable)`);
+  }
   return { nodeMajor: major, git };
 }
 
