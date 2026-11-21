@@ -84,6 +84,33 @@ node --version                        # must be >= 18 (engines field)
 | `--install-agents` reports `no install route resolved` for a tool | Every probe failed: Homebrew off PATH, or `npm view` could not reach the registry, or the formula/cask name moved | Fix the route it names in the detail line, or install that CLI yourself — the report at `reports/agents-<stamp>.json` carries each route's reason |
 | An announcement line in `bootstrap.sh` prints several hundred lines of someone else's script | A `$( … )` inside a double-quoted `say` string *ran* the command it meant to describe (this happened for real with the Homebrew installer) | Quote the announcement in single quotes. The suite pins it: `bootstrap.sh --dry-run announces the Homebrew route instead of running it` |
 
+### `asbmods uninstall` reports an empty ledger
+
+Installs made before 0.3.1 were written to `state/reports/{brew,npm,agents}-*.json` but not to a
+ledger, so run `asbmods uninstall --rebuild-from-reports` first: it turns those reports into ledger
+rows — the same evidence you would read by hand, with no guessing about names that appear nowhere.
+A ledger can also be legitimately empty: a run that reported `already installed` for everything
+recorded nothing, because the installer did not put those packages on the machine. Details:
+[page 11](11-update-and-rollback.md#undoing-software-the-installer-installed).
+
+### `asbmods doctor --install-prereqs` exits 2 instead of installing
+
+`doctor` is read-only by contract, so it now refuses mutating flags instead of quietly ignoring them —
+the earlier behaviour printed the table and exited 0 as though the flag had been considered, which
+taught people that flags are decoration. The command that acts is `asbmods install --install-prereqs`
+(or `--install-agents`). `status` follows the same rule.
+
+### `uninstall --yes` refuses under `--no-input`
+
+Intentional: an unattended run cannot consent to removing third-party software. Either plan it
+(`asbmods uninstall`, read-only) or run it interactively with `--yes`.
+
+### removal reported "could not verify removal"
+
+The manager (brew or npm) exited 0 but the name is still listed, or the manager itself went missing
+between planning and verifying. Re-run `asbmods uninstall` to see the row's current grouping, and
+check the manager on PATH — `asbmods doctor` reports Homebrew's presence and whether it is exported.
+
 ## Known gaps
 
 These are real limitations of the current code, not misuse. Each names the honest workaround and,
@@ -91,13 +118,10 @@ where small, the fix.
 
 | # | Gap | Impact | Workaround / fix |
 | --- | --- | --- | --- |
-| 1 | brew installs are never uninstalled, npm globals likewise | a payload change can leave stale artifacts on the machine | remove them yourself (`brew remove`, `npm rm -g`). Fix: a `prune` phase diffing manifest vs installed |
-| 2 | `reset` has no `--dry-run` and applies immediately | an unintended replay overwrites current files | rehearsal against `ASB_MODS_HOME=/tmp/…` first; layer-2 backups still exist |
-| 3 | archives are never pruned | disk usage grows with every cutover | prune as described on [page 11](11-update-and-rollback.md#pruning-safely) |
-| 4 | POSIX-only assumptions (`/bin/bash -lc`, `.zshrc`/`.bashrc`/`.zshenv`) | no Windows support; fish/csh get no rc wiring | on Windows use a POSIX shell environment; source the env file manually in fish |
-| 5 | commits are not cryptographically signed | `git log` shows verified-looking authorship without a signature | verify by content and CI, or set `user.signingkey` + `gpg.format=ssh` and re-sign your own commits |
-| 6 | not published to the public registry (`npm view @asbmods/install` → 404) | `npx @asbmods/install` fails; the README's npx route is `github:`-prefixed | publish checklist on [page 15](15-release-and-publishing.md) |
-
+| 1 | archives are never pruned | disk usage grows with every cutover | prune as described on [page 11](11-update-and-rollback.md#pruning-safely) |
+| 2 | POSIX-only assumptions (`/bin/bash -lc`, `.zshrc`/`.bashrc`/`.zshenv`) | no Windows support; fish/csh get no rc wiring | on Windows use a POSIX shell environment; source the env file manually in fish |
+| 3 | commits are not cryptographically signed | `git log` shows verified-looking authorship without a signature | verify by content and CI, or set `user.signingkey` + `gpg.format=ssh` and re-sign your own commits |
+| 4 | not published to the public registry (`npm view @asbmods/install` → 404) | `npx @asbmods/install` fails; the README's npx route is `github:`-prefixed | publish checklist on [page 15](15-release-and-publishing.md) |
 Per-tool filtering still does not exist: `--agent=<a,b>` is **rejected** (exit 2) rather than
 accepted and ignored, so a run never looks scoped when it is not. Implementing the filter means
 threading a selection through detection, deploy, hooks, brew and env; until that lands, every run
@@ -121,6 +145,15 @@ processes all three agents.
   returned nothing, npm packages unresolvable, brew rows still missing after `--install-brew`, or
   secrets verification failed. Without it exit 0 still means only "ran to completion", because a
   skipped removal or an absent agent is the expected outcome of a normal plan run.
+- brew formulae, casks and npm globals the installer put on the machine are now recorded in
+  `install-ledger.json`, and `asbmods uninstall` plans (and with `--yes` runs) the inverse, verifying
+  each removal by re-querying the manager. Runtime prerequisites and agent CLIs are held back unless
+  explicitly included, and installs made before 0.3.1 are recoverable with `--rebuild-from-reports`.
+- `reset --dry-run` now exists: it resolves exactly the candidates a real restore would use and
+  restores nothing, writing no report either — a dry run that changed nothing leaves no evidence it
+  did anything.
+- `doctor` and `status` reject mutating flags (`--install-*`, `--rotate-secrets`,
+  `--allow-destructive`) with exit 2 instead of accepting and ignoring them.
 ## Not bugs — by design
 
 | Looks wrong | Is deliberate because |
@@ -140,6 +173,8 @@ processes all three agents.
 | `~/…/installed-manifest.json` | exactly which keys were added/appended/replaced, per file |
 | `~…/reports/removal-<stamp>.json` | what was deleted, with type/bytes/sha per entry |
 | `~…/reports/restore-<stamp>.json` | what a reset put back |
+| `~…/install-ledger.json` | what the installer put on the machine (`manager`, `name`, install command, `removedAt`) — the only thing `uninstall` will ever act on |
+| `~…/reports/uninstall-<stamp>.json` | what a removal run did, per entry: removed, failed with the reason, or held back with the flag that unlocks it |
 | `~…/reports/inventory-*.json`, `npm-*.json` | detection and npm snapshots (detection writes these even on dry runs) |
 | `~…/backups/<stamp>/` + `last-archive.json` | the pre-change snapshot and its completeness verdict |
 | `~…/file-backups/` | every pre-write copy of a config file, hash-named |

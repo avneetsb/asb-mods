@@ -1066,6 +1066,157 @@ test('bootstrap.sh refuses to install where no one is there to answer for it', (
   assert.ok(!fs.existsSync(path.join(HOME, '.nvm')), 'an unattended run created ~/.nvm');
 });
 
+section('install ledger — what the installer put on the machine, and how to take it back');
+
+// brew and npm are replaced by shims whose whole state is a marker directory: a name counts as
+// installed while MARK/<name> exists, and an uninstall deletes the marker. "installed", "removed"
+// and "held back" therefore stay observable instead of asserted, on a fixture that cannot reach
+// this machine's real Homebrew or npm prefix.
+{
+  const fx = fs.mkdtempSync(path.join(os.tmpdir(), 'asbmods-ledger-'));
+  const fh = path.join(fx, 'home');
+  const fxdg = path.join(fx, 'xdg');
+  const markers = path.join(fx, 'markers');
+  const mbin = path.join(fx, 'mbin');
+  for (const d of [fh, fxdg, markers, mbin]) fs.mkdirSync(d, { recursive: true });
+  const SHIM_BREW = 'IyEvYmluL2Jhc2gKbWsoKSB7IGVjaG8gIk1BUksvJChlY2hvICIkMSIgfCB0ciAnLycgJ18nKSI7IH0KY2FzZSAiJDEiIGluCiAgLS12ZXJzaW9uKSBlY2hvICJIb21lYnJldyA0LjkuMCI7IGV4aXQgMDs7CiAgbGlzdCkgbmFtZT0iJHtAOiAtMX0iOyBmPSQobWsgIiRuYW1lIik7IFsgLWYgIiRmIiBdICYmIHsgZWNobyAiJG5hbWUgMS4yLjMiOyBleGl0IDA7IH07IGV4aXQgMTs7CiAgdW5pbnN0YWxsKSBzaGlmdDsgWyAiJDEiID0gIi0tY2FzayIgXSAmJiBzaGlmdDsgcm0gLWYgIiQobWsgIiQxIikiOyBleGl0IDA7Owplc2FjCmV4aXQgMAo=';
+  const SHIM_NPM = 'IyEvYmluL2Jhc2gKY2FzZSAiJDEiIGluCiAgbHMpIHByaW50ZiAneyJkZXBlbmRlbmNpZXMiOnsnOyBmaXJzdD0xOyBmb3IgZiBpbiBNQVJLLyo7IGRvIFsgLWUgIiRmIiBdIHx8IGNvbnRpbnVlOyBuPSQoYmFzZW5hbWUgIiRmIiB8IHRyICdfJyAnLycpOyBbICRmaXJzdCAtZXEgMCBdICYmIHByaW50ZiAiLCI7IHByaW50ZiAnIiVzIjp7InZlcnNpb24iOiIxLjAuMCJ9JyAiJG4iOyBmaXJzdD0wOyBkb25lOyBwcmludGYgJ319XG4nOyBleGl0IDA7OwogIHVuaW5zdGFsbCkgcm0gLWYgIk1BUksvJChlY2hvICIkMyIgfCB0ciAnLycgJ18nKSI7IGV4aXQgMDs7CmVzYWMKZXhpdCAwCg==';
+  for (const [name, b64] of [['brew', SHIM_BREW], ['npm', SHIM_NPM]]) {
+    const p = path.join(mbin, name);
+    fs.writeFileSync(p, Buffer.from(b64, 'base64').toString('utf8').split('MARK').join(markers), { mode: 0o755 });
+    fs.chmodSync(p, 0o755);
+  }
+  const marker = (n) => path.join(markers, n.split('/').join('_'));
+  for (const n of ['widget', 'gizmo', '@scope/tool', 'node', '@earendil-works/pi-coding-agent']) fs.writeFileSync(marker(n), 'x');
+  const lenv = { ...process.env, ASB_MODS_HOME: fh, ASB_MODS_CORE: path.join(PKG, 'shared-core'),
+    XDG_CONFIG_HOME: fxdg, NO_COLOR: '1', PATH: `${mbin}:${process.env.PATH}` };
+  const runLedger = (args, extraEnv) => {
+    const r = cp.spawnSync(process.execPath, [path.join(PKG, 'install.js'), ...args],
+      { cwd: PKG, encoding: 'utf8', input: '', timeout: 180000, env: Object.assign({}, lenv, extraEnv || {}) });
+    if (r.error) throw r.error;
+    return { status: r.status, out: `${r.stdout || ''}${r.stderr || ''}` };
+  };
+  const ledgerFile = path.join(fxdg, 'asb-mods', 'install-ledger.json');
+  const readLedger = () => JSON.parse(fs.readFileSync(ledgerFile, 'utf8'));
+  const reportsDir = path.join(fxdg, 'asb-mods', 'reports');
+  const reportFiles = (prefix) => (fs.existsSync(reportsDir) ? fs.readdirSync(reportsDir).filter((f) => f.startsWith(prefix)) : []);
+  // Seeded through the module itself, so what is asserted is production's own record format.
+  const SEED = 'const L=require(' + JSON.stringify(path.join(PKG, 'lib/ledger.js')) + ');L.record(['
+    + "{manager:'brew',name:'widget',kind:'formula',source:'test'},"
+    + "{manager:'brew',name:'gizmo',kind:'cask',source:'test'},"
+    + "{manager:'npm-global',name:'@scope/tool',kind:'package',source:'test'},"
+    + "{manager:'brew',name:'node',kind:'formula',source:'test'},"
+    + "L.routeEntry({kind:'npm-global',package:'@earendil-works/pi-coding-agent',"
+    + "command:['npm','install','-g','@earendil-works/pi-coding-agent']},'pi')]);";
+  const seedLedger = () => cp.spawnSync(process.execPath, ['-e', SEED], { cwd: PKG, encoding: 'utf8', env: lenv });
+
+  test('ledger records each install once, under the manager that owns it', () => {
+    assert.strictEqual(seedLedger().status, 0);
+    const led = readLedger();
+    assert.strictEqual(led.entries.length, 5, JSON.stringify(led.entries.map((e) => e.name)));
+    const node = led.entries.find((e) => e.name === 'node');
+    assert.strictEqual(node.reversible, false, 'a runtime prerequisite must not be removable by us');
+    const pi = led.entries.find((e) => e.name === '@earendil-works/pi-coding-agent');
+    assert.strictEqual(pi.agent, 'pi', 'an agent CLI has to be recognisable as one');
+    assert.strictEqual(pi.manager, 'npm-global');
+    assert.strictEqual(seedLedger().status, 0);
+    assert.strictEqual(readLedger().entries.length, 5, 're-recording the same install duplicated it');
+  });
+
+  test('uninstall plans, separating removable from held back, and touches nothing', () => {
+    const before = reportFiles('').length;
+    const r = runLedger(['uninstall']);
+    assert.strictEqual(r.status, 0, r.out.slice(-300));
+    assert.ok(r.out.includes('would remove  brew:widget'), r.out.slice(-400));
+    assert.match(r.out, /→\s+brew uninstall --cask gizmo/, `a cask needs --cask to be removed: ${r.out.slice(-400)}`);
+    assert.ok(r.out.includes('would remove  npm-global:@scope/tool'), r.out.slice(-400));
+    assert.ok(r.out.includes('held back     brew:node'), r.out.slice(-400));
+    assert.ok(r.out.includes('held back     npm-global:@earendil-works/pi-coding-agent'), r.out.slice(-400));
+    assert.match(r.out, /--include-agent-clis/, 'the held-back agent CLI row must name the flag that unlocks it');
+    assert.ok(readLedger().entries.every((e) => !e.removedAt), 'planning marked something as removed');
+    assert.strictEqual(reportFiles('').length, before, 'a plan wrote a report file');
+  });
+
+  test('uninstall --json reports the same plan as data', () => {
+    const r = runLedger(['uninstall', '--json']);
+    assert.strictEqual(r.status, 0, r.out.slice(-200));
+    const j = JSON.parse(r.out.slice(r.out.indexOf('{')));
+    assert.ok(j.removable.some((e) => e.name === 'widget'), JSON.stringify(j.removable));
+    assert.ok(j.heldBack.some((e) => e.name === 'node'), JSON.stringify(j.heldBack));
+  });
+
+  test('--name tells you about a name the ledger never recorded', () => {
+    const r = runLedger(['uninstall', '--name=ghost']);
+    assert.strictEqual(r.status, 0, r.out.slice(-200));
+    assert.ok(r.out.includes('--name=ghost is not in the install ledger'), r.out.slice(-300));
+  });
+
+  test('removal needs --yes, and an unattended run cannot give that consent', () => {
+    const r = runLedger(['uninstall', '--yes', '--no-input']);
+    assert.strictEqual(r.status, 2, r.out.slice(-300));
+    assert.ok(fs.existsSync(marker('widget')), 'the refused run removed software anyway');
+  });
+
+  test('read-only commands reject flags that would mutate', () => {
+    const cases = [
+      [['doctor', '--install-prereqs'], /doctor is read-only/],
+      [['doctor', '--rotate-secrets'], /doctor is read-only/],
+      [['status', '--allow-destructive'], /status is read-only/],
+    ];
+    for (const [args, re] of cases) {
+      const r = runLedger(args);
+      assert.strictEqual(r.status, 2, `${args.join(' ')} → ${r.out.slice(-200)}`);
+      assert.match(r.out, re);
+    }
+    assert.ok([0, 1].includes(runLedger(['doctor']).status), 'doctor itself must still run');
+  });
+
+  test('uninstall --yes removes only recorded installs and verifies each one', () => {
+    const r = runLedger(['uninstall', '--yes']);
+    assert.strictEqual(r.status, 0, r.out.slice(-400));
+    assert.match(r.out, /3 removed, 0 failed/);
+    for (const n of ['widget', 'gizmo', '@scope/tool']) assert.ok(!fs.existsSync(marker(n)), `${n} was not actually removed`);
+    assert.ok(fs.existsSync(marker('node')), 'a held-back runtime prerequisite was removed');
+    assert.strictEqual(readLedger().entries.filter((e) => e.removedAt).length, 3, 'ledger did not record the removals');
+    assert.strictEqual(reportFiles('uninstall-').length, 1, JSON.stringify(reportFiles('uninstall-')));
+    const again = runLedger(['uninstall']);
+    assert.ok(again.out.includes('0 removable'), again.out.slice(-300));
+    assert.ok(again.out.includes('already gone  brew:widget'), again.out.slice(-300));
+  });
+
+  test('status admits whether anything was ever recorded', () => {
+    const r = runLedger(['status']);
+    assert.match(r.out, /install ledger/);
+  });
+
+  test('--rebuild-from-reports recovers installs made before the ledger existed', () => {
+    const fx2 = fs.mkdtempSync(path.join(os.tmpdir(), 'asbmods-ledgerold-'));
+    const home2 = path.join(fx2, 'home');
+    const xdg2 = path.join(fx2, 'xdg');
+    const rep = path.join(xdg2, 'asb-mods', 'reports');
+    fs.mkdirSync(home2, { recursive: true });
+    fs.mkdirSync(rep, { recursive: true });
+    fs.writeFileSync(path.join(rep, 'brew-1000.json'), JSON.stringify({ installed: ['jq'], missingRows: [{ name: 'jq', type: 'formula' }] }));
+    fs.writeFileSync(path.join(rep, 'npm-1001.json'), JSON.stringify({ results: { installed: ['pi-one-ui'] } }));
+    fs.writeFileSync(path.join(rep, 'agents-1002.json'), JSON.stringify({ installed: [{ tool: 'codex', route: 'npm-global:@openai/codex', at: '/x/codex' }] }));
+    const r = runLedger(['uninstall', '--rebuild-from-reports'], { ASB_MODS_HOME: home2, XDG_CONFIG_HOME: xdg2 });
+    assert.strictEqual(r.status, 0, r.out.slice(-300));
+    assert.match(r.out, /ledger rebuilt from 3 report\(s\)/);
+    const text = fs.readFileSync(path.join(xdg2, 'asb-mods', 'install-ledger.json'), 'utf8');
+    for (const n of ['jq', 'pi-one-ui', '@openai/codex']) assert.ok(text.includes(n), `rebuilt ledger lost ${n}`);
+  });
+
+  test('reset --dry-run resolves the rollback it would perform and changes nothing', () => {
+    const dir = statePath('reports');
+    const restoreReports = () => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.startsWith('restore-')) : []);
+    const before = restoreReports().length;
+    const r = run(['reset', '--dry-run']);
+    assert.strictEqual(r.status, 0, r.out.slice(-300));
+    assert.match(r.out, /--dry-run: \d+ artifact\(s\) would be restored/);
+    assert.strictEqual(restoreReports().length, before, 'a dry-run restore wrote a report of a restore');
+  });
+}
+
 console.log(`\n${passed} passed, ${failures.length} failed`);
 if (failures.length) {
   console.log(`failed: ${failures.join(', ')}`);

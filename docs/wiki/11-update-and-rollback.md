@@ -129,6 +129,30 @@ ls -R /tmp/asb-fix/xdg/asb-mods            # archives + reports you can inspect
 That is exactly how the destructive phases are tested, which is why shipping them is defensible: they
 run against a fixture home on every `npm test`.
 
+## Undoing software the installer installed
+
+`reset` replays a removal report: it restores *files* the cutover deleted. It cannot uninstall
+software, and until 0.3.1 nothing else in the package could either — `brew install` and `npm i -g` had
+no inverse here, so "roll back" stopped at configuration and a machine stayed dirty.
+
+| Situation | Command |
+| --- | --- |
+| See what the installer installed, and what it would remove | `asbmods uninstall` (read-only plan) |
+| Same, machine-readable | `asbmods uninstall --json` |
+| Remove exactly that list | `asbmods uninstall --yes` |
+| One package only | `asbmods uninstall --name=gitnexus` |
+| Machine was installed before 0.3.1 | `asbmods uninstall --rebuild-from-reports`, then plan as usual |
+| An agent CLI is genuinely in the way | `asbmods uninstall --include-agent-clis --yes` |
+| Homebrew or Node itself | held back by design; `--include-held-back --yes` unlocks it, and remember `install.js` *is* Node |
+
+Three properties worth relying on. Nothing is inferred — only installs the installer recorded are ever
+proposed, so a Homebrew you installed yourself cannot appear in the list. Removal is verified: after
+each command the manager is asked again, and "exited 0 but still installed" is reported as a failure
+instead of a success. And the plan does not lie about a missing manager — with Homebrew gone, brew rows
+report `unknown`, never `already gone`.
+
+Module contract: [`lib/ledger.js`](05-components-lib.md#libledgerjs--the-install-ledger-uninstall).
+
 ## Pruning safely
 
 Archives are plain copies — they accumulate. Keep, per rule of thumb: the newest one, and any archive

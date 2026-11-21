@@ -1,10 +1,21 @@
 {
   "name": "@asbmods/install",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Self-contained installer that consolidates personal tooling for pi, Claude Code and Codex",
   "main": "./install.js",
   "bin": {
     "asbmods": "./install.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/avneetsb/asb-mods.git"
+  },
+  "homepage": "https://github.com/avneetsb/asb-mods#readme",
+  "bugs": {
+    "url": "https://github.com/avneetsb/asb-mods/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "test": "node test/install.test.js"

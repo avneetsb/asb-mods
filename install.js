@@ -30,6 +30,7 @@ const npmpkgs = require('./lib/npmpkgs');
 const restore = require('./lib/restore');
 const prereqs = require('./lib/prereqs');
 const agentsmod = require('./lib/agents');
+const ledger = require('./lib/ledger');
 
 const COLOR = process.stdout.isTTY && !process.env.NO_COLOR;
 const C = COLOR
@@ -61,6 +62,7 @@ Commands
   status     Show what is deployed and how it was verified
   doctor     Read-only prerequisite check: Node, npm, git, Xcode CLT, Homebrew, agent CLIs
   reset      Restore removed artifacts from the latest archive
+  uninstall    What this installer put on the machine: plan its removal (needs --yes to run)
   help       This text
 
 Flags
@@ -77,6 +79,10 @@ Flags
   --json                 Emit machine-readable JSON for detect/status
   --install-prereqs      Install missing prerequisites, announcing each command (needs a terminal)
   --install-agents       Install absent agent CLIs, using shared-core/npm/agents.json routes
+  --name=<a,b>           uninstall: restrict the plan or removal to these package names
+  --include-agent-clis   uninstall: let it consider the agent CLIs we installed (held back otherwise)
+  --include-held-back    uninstall: let it consider runtime prerequisites (node, npm, git, Homebrew)
+  --rebuild-from-reports uninstall: rebuild the ledger from reports written before 0.3.1
   Node missing?        ./bootstrap.sh installs a Node toolchain (or --via=nvm, --via=none);
                        it changes nothing else. Everything else: asbmods doctor.
 
@@ -99,8 +105,9 @@ Rejected on purpose
 Exit codes
   0  ran to completion (a skipped removal or missing brew rows is not an error)
   1  fatal error, or shared-core missing next to the installer. Also: \`asbmods doctor\` found a gap
-  2  bad usage: unknown command, unknown flag, invalid --scope, --agent passed, or an --install-*
-     flag under --no-input (an unattended run cannot consent to installing software)
+  2  bad usage: unknown command, unknown flag, invalid --scope, --agent passed, an --install-*
+     flag on a read-only command (doctor/status), or uninstall asked to remove software under
+     --no-input without --yes (an unattended run cannot consent to installing or removing)
   3  --strict and at least one phase soft-failed
 `;
 
@@ -124,6 +131,10 @@ function parseArgv(argv) {
     else if (a === '--strict') out.flags.strict = true;
     else if (a === '--install-prereqs') out.flags.installPrereqs = true;
     else if (a === '--install-agents') out.flags.installAgents = true;
+    else if (a.startsWith('--name=')) out.flags.names = a.slice(7).split(',').map((s) => s.trim()).filter(Boolean);
+    else if (a === '--include-agent-clis') out.flags.includeAgentClis = true;
+    else if (a === '--include-held-back') out.flags.includeHeldBack = true;
+    else if (a === '--rebuild-from-reports') out.flags.rebuildLedger = true;
     else if (!a.startsWith('-')) out.command = a;
     else out.flags.unknown.push(a);
   }
@@ -131,7 +142,7 @@ function parseArgv(argv) {
 }
 
 const KNOWN_COMMANDS = ['all', 'detect', 'archive', 'remove', 'install', 'npm', 'brew', 'env',
-  'secrets', 'hooks', 'status', 'reset', 'doctor', 'help'];
+  'secrets', 'hooks', 'status', 'reset', 'doctor', 'uninstall', 'help'];
 const KNOWN_AGENTS = ['pi', 'claude', 'codex'];
 
 // Typos must not degrade into a silently different run. `asbmods instal` used to behave as
@@ -151,6 +162,17 @@ function validateUsage(command, flags) {
     problems.push(bad.length
       ? `--agent names unsupported tools: ${bad.join(', ')} (supported: ${KNOWN_AGENTS.join(', ')})`
       : '--agent is not implemented: every run processes all three agents — drop the flag');
+  }
+  // A read-only command that quietly accepts --install-prereqs teaches people that flags are
+  // decoration: `asbmods doctor --install-prereqs` used to print a table and exit 0 as if the
+  // installs had been considered. Refuse the combination and name the command they belong to.
+  const READ_ONLY_COMMANDS = ['doctor', 'status'];
+  const MUTATING_FLAGS = ['installBrew', 'installNpm', 'installPrereqs', 'installAgents',
+    'rotateSecrets', 'allowDestructive'];
+  if (READ_ONLY_COMMANDS.includes(command)) {
+    const toFlag = (k) => `--${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
+    const given = MUTATING_FLAGS.filter((k) => flags[k]).map(toFlag);
+    if (given.length) problems.push(`${command} is read-only; ${given.join(', ')} belong to "asbmods install"`);
   }
   if (!problems.length) return;
   for (const p of problems) log('err', p);
@@ -200,6 +222,42 @@ async function main() {
     process.exit(verdict.ok ? 0 : 1);
   }
 
+  // uninstall works from the install ledger, so it needs neither shared-core nor a phase run.
+  // Planning is read-only; removal happens only with --yes, and an unattended run that never
+  // consented (--no-input without --yes) is refused with 2 rather than trusted.
+  if (command === 'uninstall') {
+    banner('Uninstall — software this installer recorded');
+    if (flags.rebuildLedger) {
+      const rb = ledger.rebuildFromReports(log);
+      log('ok', `ledger rebuilt from ${rb.reports} report(s): ${rb.total} entr${rb.total === 1 ? 'y' : 'ies'} on file`);
+    }
+    const acts = !!flags.yes;
+    if (acts && flags.noInput) {
+      log('err', 'uninstall needs --yes to remove software and cannot consent under --no-input — re-run with --yes, or drop --yes to plan');
+      process.exit(2);
+    }
+    const opts = {
+      names: flags.names, includeAgentClis: !!flags.includeAgentClis, includeHeldBack: !!flags.includeHeldBack,
+      dryRun: !acts,
+    };
+    if (!acts) {
+      const p = ledger.plan(opts);
+      for (const e of p.removable) log('info', `would remove  ${e.manager}:${e.name}  →  ${(e.removal || []).join(' ')}`);
+      for (const e of p.heldBack) log('info', `held back     ${e.manager}:${e.name}  —  ${e.heldBackReason}`);
+      for (const e of p.alreadyGone) log('info', `already gone  ${e.manager}:${e.name}`);
+      for (const n of p.unknownNames) log('warn', `--name=${n} is not in the install ledger`);
+      log(p.total ? 'ok' : 'warn', `${p.removable.length} removable · ${p.heldBack.length} held back · ${p.alreadyGone.length} already gone — ledger ${p.file}`);
+      if (flags.json) console.log(JSON.stringify(p, null, 2));
+      if (!p.total) log('info', 'nothing recorded yet; installs made before 0.3.1 can be recovered with --rebuild-from-reports');
+      return;
+    }
+    const res = ledger.remove(opts, log);
+    for (const n of res.unknownNames) log('warn', `--name=${n} is not in the install ledger`);
+    log(res.failed.length ? 'warn' : 'ok', `${res.removed.length} removed, ${res.failed.length} failed — report ${res.reportPath}`);
+    if (flags.strict && res.failed.length) process.exit(3);
+    return;
+  }
+
   const results = {};
 
   // ---- detect ------------------------------------------------------------
@@ -230,8 +288,11 @@ async function main() {
   if (command === 'reset') {
     banner('Reset — restore from latest archive');
     const scoped = restore.restoreRemoved(flags, log);
-    if (scoped.restored && scoped.restored.length) log('ok', `restored ${scoped.restored.length} artifact(s)`);
-    else log('info', scoped.reason || 'nothing restored');
+    if (scoped.dryRun) {
+      log('ok', `--dry-run: ${scoped.wouldRestore.length} artifact(s) would be restored, ${scoped.failed.length} no longer in the archive — nothing changed`);
+    } else if (scoped.restored && scoped.restored.length) {
+      log('ok', `restored ${scoped.restored.length} artifact(s)`);
+    } else log('info', scoped.reason || 'nothing restored');
     return;
   }
 
@@ -438,6 +499,11 @@ function status(flags) {
     lines.push(['secrets.env', `${Object.keys(X.readFrom(secretsFile)).length} var(s), mode ${mode}`, mode === '600']);
   } else lines.push(['secrets.env', 'not created', false]);
 
+  const led = ledger.read();
+  const stillInstalled = led.entries.filter((e) => !e.removedAt);
+  lines.push(['install ledger', stillInstalled.length
+    ? `${stillInstalled.length} package(s) installed by us (${led.entries.length - stillInstalled.length} since removed)`
+    : 'empty — installs are recorded from 0.3.1 on (asbmods uninstall --rebuild-from-reports)', led.entries.length > 0]);
   lines.push(['shell-env deployed', path.join(P.ENV_DIR, 'shell-env.sh'), X.isFile(path.join(P.ENV_DIR, 'shell-env.sh'))]);
   const sourced = P.dotfiles.filter((rc) => X.isFile(rc) && X.readFileSyncSafe(rc).includes(secretsmod.MARK_BEGIN)).map((rc) => path.basename(rc));
   lines.push(['shell rc wired', sourced.join(', ') || 'none', sourced.length > 0]);

@@ -22,3 +22,5 @@ asb-mods-*.tar.gz
 # Machine-local vocabulary for the internal-term screen: the detection mechanism
 # ships (lib/tooling.js, tools/vendor.js, policy.json), the vocabulary does not.
 shared-core/tooling/policy.local.json
+plan/
+*.tgz

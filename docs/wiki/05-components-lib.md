@@ -187,6 +187,29 @@ of a run carries the same numbers plus `installed` and `failed`. A failed instal
 `--strict` exit 3 — the phase itself still exits 0, on the rule that a run which finished honestly is
 not a crash.
 
+## `lib/ledger.js` — the install ledger (`uninstall`)
+
+What the installer put on the *machine*, as opposed to the files it copied into agent directories.
+Every install path records what it actually installed: `brew.js` (formulae and casks, with the row
+type so a cask is removed with `--cask`), `npmpkgs.js` (npm globals), `prereqs.js` (whatever
+`brew install …` step it ran) and `agents.js` (agent CLIs, via `routeEntry()`, tagged with the tool
+they belong to).
+
+| Export | Contract |
+| --- | --- |
+| `record(entries)` | Appends to `state/install-ledger.json`, deduped by `manager:name`, so a re-install refreshes one row instead of adding a second removable entry. Runtime prerequisites (`node`, `npm`, `git`, Homebrew) are stored with `reversible: false` on the way in |
+| `read()` | Never throws: a missing or corrupt ledger reads as empty |
+| `plan(opts)` | Read-only. Asks each manager whether the name is still present, then groups rows into `removable` / `heldBack` (with the reason and the flag that unlocks it) / `alreadyGone`. Never runs a removal |
+| `remove(opts, log)` | Runs the removal command for each planned row and *verifies* it by re-querying the manager: exit 0 with the name still listed is a failure, not a success. Writes `reports/uninstall-<ts>.json` and stamps `removedAt` on the row |
+| `rebuildFromReports(log)` | Materialises the ledger from the `reports/{brew,npm,agents}-*.json` a pre-0.3.1 installer already wrote, so an existing machine is not stuck with an empty one |
+| `routeEntry(route, agent)` | Turns an `agents.json` route into a ledger entry — the single place that maps `npm-global`/`brew-formula`/`brew-cask` onto a manager and a kind |
+
+Two limits worth knowing. A manager that is *itself* missing reports `unknown`, never "not installed":
+otherwise removing Homebrew first would silently reclassify every brew row as already-gone. And a
+`native` route (a vendor `curl | bash`) is recorded but never planned, because there is no inverse
+command the package could state honestly — the row says so and points at the vendor's own docs.
+The ledger stores managers and names, never absolute paths, so it survives another user, another
+Homebrew prefix or a moved Node.
 ## Module dependency graph
 
 ```text
@@ -199,12 +222,14 @@ install.js
   ├── deploy → paths, fsx, tooling
   ├── hooks  → paths, fsx
   ├── secrets→ paths, fsx
-  ├── npmpkgs→ paths, fsx
-  ├── brew   → paths, fsx, detect(parseFormulae)
-  ├── prereqs→ (fs, path, child_process only — a leaf by design: doctor must work on a machine
-  │           where nothing else in the package can run yet)
+  ├── npmpkgs→ paths, fsx, ledger(record)
+  ├── brew   → paths, fsx, detect(parseFormulae), ledger(record)
+  ├── ledger → paths, fsx, child_process (brew/npm queries only; never touches shared-core)
+  ├── prereqs→ (fs, path, child_process, ledger(record)) — a leaf by design *in effect*: doctor
+  │           must work on a machine where nothing else in the package can run yet, and ledger
+  │           needs only paths + fsx, so that promise still holds
   ├── restore→ paths, fsx, archive
-  └── agents  → paths, fsx, prereqs(catalogue + findOnPath), npmpkgs(resolvable)
+  └── agents  → paths, fsx, prereqs(catalogue + findOnPath), npmpkgs(resolvable), ledger(record)
 tools/vendor.js → lib/tooling.js, lib/fsx.js, lib/paths.js   (development only)
 ```
 
@@ -212,3 +237,8 @@ No cycles: `paths` and `fsx` are leaves; every phase module depends on them and 
 the deliberate reuses (`remove` re-checks `detect.isProtected`, `brew` reuses `detect.parseFormulae`,
 `agents` reads the catalogue and PATH rules out of `prereqs` and registry reachability out of
 `npmpkgs`, so an install route is judged by the same probe the npm phase already used).
+`ledger` is the one module four phases depend on — brew, npmpkgs, prereqs and agents each call
+`record()` after a successful install — and the direction is deliberate: `ledger` depends on
+`paths`/`fsx` and queries managers through `child_process`, never on a phase module, so the four
+install paths can share one record without any of them importing each other. That is also why
+`doctor` keeps working on a bare machine: the ledger it may touch needs no shared-core and no network.

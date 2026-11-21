@@ -76,8 +76,8 @@ npx github:avneetsb/asb-mods#<commit-sha> --dry-run            # pin a specific 
 ```
 
 `github:` resolves to `git+ssh`, so it uses your SSH key; the `git+https` form needs none.
-Both were verified against this repo (`npm view git+ssh://git@github.com/avneetsb/asb-mods.git`
-→ `@asbmods/install 0.3.0`, re-verified when v0.3.0 was tagged).
+→ `@asbmods/install 0.3.0`, verified when v0.3.0 was tagged — re-run that command after each
+release push, because `github:` resolves the default branch, so it reports whatever `main` holds).
 
 ### First run, in order
 
@@ -114,16 +114,30 @@ npx temp dir all behave identically. There is no hardcoded checkout location.
 
 Each phase also runs standalone: `asbmods detect|archive|remove|install|npm|brew|env|secrets|hooks`,
 plus `doctor` (the prerequisite table above; exits `1` when something is missing so CI can gate on
-it), `status` (what is deployed and verified) and `reset` (restore what removal took).
+it), `status` (what is deployed and verified), `reset` (restore what removal took) and `uninstall`
+(what the installer put on the *machine* — brew formulae, casks and npm globals — and how to take
+it back).
+
+`reset` rolls back file copies; it cannot uninstall software, so the installer now keeps an
+**install ledger** (`~/.config/asb-mods/install-ledger.json`) of every `brew`/npm global install it
+performed. `asbmods uninstall` plans the inverse from it (read-only, default); `--yes` runs it, and
+each removal is verified by asking the manager afterwards rather than trusting an exit code. Runtime
+prerequisites (`node`, `npm`, `git`, Homebrew) and agent CLIs are held back unless you pass
+`--include-held-back` / `--include-agent-clis`, and a package you installed yourself is never in the
+ledger, so it can never be proposed. Installs made before 0.3.1 are recovered with
+`asbmods uninstall --rebuild-from-reports`.
 
 ### Flags
 
 `--dry-run` · `--yes` · `--allow-destructive` · `--no-input` (CI) · `--scope=required|all` ·
 `--install-brew` · `--limit=N` · `--install-npm` · `--install-prereqs` · `--install-agents` ·
-`--probe=false` · `--rotate-secrets` · `--json` · `--report=<name>` · `--strict` · `--help` / `-h`
+`--probe=false` · `--rotate-secrets` · `--json` · `--report=<name>` · `--name=<a,b>` ·
+`--include-agent-clis` · `--include-held-back` · `--rebuild-from-reports` · `--strict` · `--help` / `-h`
 
 Exit codes: `0` ran to completion (a skipped removal or missing brew rows is not an error), `1` fatal,
-`2` bad usage — an unknown command or flag is refused, not ignored — `3` `--strict` plus a soft failure.
+`2` bad usage — an unknown command or flag is refused, not ignored, and neither do a mutating flag on
+a read-only command (`doctor`, `status`) nor `uninstall --yes` under `--no-input` slip through —
+`3` `--strict` plus a soft failure.
 `asbmods doctor` is the exception: it exits `1` whenever a prerequisite is missing, which is how a
 CI job gates on it.
 

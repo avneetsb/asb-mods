@@ -7,3 +7,5 @@ backups/
 asb-mods-*.tar.gz
 .org-index/
 shared-core/tooling/policy.local.json
+plan/
+*.tgz

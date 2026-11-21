@@ -106,6 +106,27 @@ software is downloaded quietly: consent is the feature, which is why an unattend
 instead of an install. See [Route 0](01-installation.md) and
 [Phase 0](03-phases.md#phase-0--prerequisites-libprereqsjs-libagentsjs).
 
+**Can the installer take back what it installed?**
+
+Yes, for software it installed itself. `asbmods uninstall` plans the removal of each recorded brew
+formula, cask and npm global from `install-ledger.json`, and `--yes` runs it. Packages you installed
+yourself are not in the ledger, so they can never be proposed; runtime prerequisites and agent CLIs
+are held back unless you pass `--include-held-back` / `--include-agent-clis`; and every removal is
+verified by asking the manager afterwards, so "exit 0 but still installed" counts as a failure.
+[Undoing software](11-update-and-rollback.md#undoing-software-the-installer-installed).
+
+**Why does `doctor` refuse `--install-prereqs`?**
+
+Because `doctor` is the read-only command, and a flag that is quietly ignored teaches people that
+flags are decoration. It now exits 2 and names the command that does act:
+`asbmods install --install-prereqs`. `status` follows the same rule.
+
+**Is `reset` the same as `uninstall`?**
+
+No. `reset` replays a removal report and puts back *files* the cutover deleted, from the archive.
+`uninstall` removes *software* — brew formulae, casks, npm globals — that a previous run installed
+through a package manager. They cover different mistakes and neither touches the other's ground.
+
 ## Payload questions
 
 **Why are 4 of the 11 artifact classes empty?**

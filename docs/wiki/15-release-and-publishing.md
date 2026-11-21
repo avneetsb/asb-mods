@@ -6,12 +6,12 @@
 
 | Fact | Value | How to re-check |
 | --- | --- | --- |
-| Version in `package.json` | `0.3.0` | `node -p "require('./package.json').version"` |
+| Version in `package.json` | `0.3.1` | `node -p "require('./package.json').version"` |
 | Git tag | `v0.3.0` (**annotated**; object `61eb530`, peeled commit `fe03c92`), `v0.2.0` (object `5fb2d0d`, peeled commit `4dba1c8`) and `v0.1.0` (object `83819aa`, peeled commit `22ba077`) | `git tag -l --format='%(refname:short) obj=%(objectname:short) commit=%(*objectname:short)'` |
 | Release commit | `fe03c92` — exactly where `v0.3.0` peels, so on that commit `git describe --tags` prints `v0.3.0`. `main` may sit ahead of the tag with docs-only commits; `v0.2.0` sits behind it at `4dba1c8` | `git rev-parse --short HEAD`, `git describe --tags`, `git rev-list v0.3.0..main --count` |
-| Public npm registry | **not published** — `E404` for `@asbmods/install` | `npm view @asbmods/install version` |
+| Public npm registry | **not published** — `E404` for `@asbmods/install`. The publish side has exactly one blocker: the `@asbmods` scope is not owned/authorised from this machine (`npm publish --dry-run` → `ENEEDAUTH`) | `npm view @asbmods/install version`; `npm publish --dry-run --access public` |
 | Worked install route today | `npx github:avneetsb/asb-mods#v0.3.0` or a clone | README install section |
-| Tarball shape | 232 files; 477.1 kB packed, 1.7 MB unpacked — `asbmods-install-0.3.0.tgz`, shasum `f15329649bc98d2a77f22039705b71103a02441d` | `npm pack --dry-run \| tail -5` |
+| Tarball shape (re-measure after any payload change) | 233 files; 478.8 kB packed (490,277 B), 1,716.8 kB unpacked — `asbmods-install-0.3.1.tgz`, shasum `17191b81bbd3a35f143c8547f9f19fc1372c621c` | `npm pack --json` (prints size/shasum/integrity), then `shasum 1 <tarball>` |
 | Commit signing | none (`user.signingkey` unset) | `git log -1 --show-signature` |
 | CI / npm provenance | none — no workflow files, so no attestations | `ls .github/workflows 2>/dev/null` |
 
@@ -21,9 +21,11 @@ will hit it; if you publish, update that paragraph too.
 ## Package manifest, and why `.npmignore` matters here
 
 ```json
-{ "name": "@asbmods/install", "version": "0.3.0", "main": "./install.js",
+{ "name": "@asbmods/install", "version": "0.3.1", "main": "./install.js",
   "bin": { "asbmods": "./install.js" }, "scripts": { "test": "node test/install.test.js" },
-  "license": "MIT", "engines": { "node": ">=18.0.0" } }
+  "license": "MIT", "engines": { "node": ">=18.0.0" },
+  "repository": { "type": "git", "url": "git+https://github.com/avneetsb/asb-mods.git" },
+  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org" } }
 ```
 
 There is deliberately **no `files` field**, so the published file set is decided by `.npmignore`. When
@@ -33,7 +35,7 @@ explicit `.npmignore` that mirrors `.gitignore`:
 
 ```text
 node_modules/  .unipi/  .engram/  *.log  *.tar.gz  backups/  .DS_Store
-asb-mods-*.tar.gz  .org-index/  shared-core/tooling/policy.local.json
+asb-mods-*.tar.gz  *.tgz  .org-index/  plan/  shared-core/tooling/policy.local.json
 ```
 
 That last line is the security-relevant one: the vocabulary screen ships (`policy.json`,
@@ -47,7 +49,7 @@ lives in your own `~/.npmrc`, never in the repository.
 ```bash
 cd ~/Dev/asb-mods
 git status --porcelain                     # must be empty
-npm test                                   # 74 green
+npm test                                   # all green (the count is asserted nowhere on purpose)
 node tools/vendor.js --dry-run             # payload unchanged or intentionally changed
 git diff --cached; git diff                # nothing naming internal systems or home paths
 
@@ -80,7 +82,7 @@ manual by design. If you publish:
 
 ```bash
 npm login --scope=@asbmods                  # the scope must be yours (npm org or your username)
-npm publish --dry-run --access public       # read the file list; 228 files is the baseline
+npm publish --dry-run --access public       # read the file list; 233 files is the 0.3.1 baseline
 npm view @asbmods/install version           # sanity: still 404 here
 
 # 2FA accounts need an OTP or an automation bypass token:
@@ -92,7 +94,12 @@ Before the real publish, confirm all of these:
 1. `npm pack` contents contain **no** `policy.local.json`, no `backups/`, no reports, no tarballs;
 2. the unpacked copy works: `npm pack && cd /tmp/t && npm i <tarball> && npx asbmods --dry-run`;
 3. the two `npx` routes in the README still describe reality (`@asbmods/install` once published);
-4. `engines.node` matches what the code requires (`>=18`), and no dependency crept into `dependencies`.
+4. `engines.node` matches what the code requires (`>=18`), and no dependency crept into `dependencies`;
+5. the `@asbmods` scope is yours and this machine is authenticated — without it npm stops at
+   `ENEEDAUTH` before the dry-run even lists files, which is the only thing still between this repo
+   and `npx @asbmods/install`;
+6. `repository` and `publishConfig` are in `package.json`, so npm can link the published package back
+   to these tags and the public registry is the target rather than an internal mirror.
 
 After publishing, `npx @asbmods/install` starts working and the repo's tags become the changelog.
 Publishing does not remove the need for tags: pin by tag in docs and issue answers.

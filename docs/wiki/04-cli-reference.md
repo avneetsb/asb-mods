@@ -16,8 +16,9 @@ The command is the first non-flag argument and defaults to `all`. Invocation for
 | `all` (default) | pre-flight → detect → archive → remove → install → npm → brew → env → secrets → hooks | removal still needs `--allow-destructive`; without it Phase 3 reports why it skipped |
 | `detect` | Phase 1 only, then exits | honours `--json`; skips pre-flight (it is pure read) |
 | `status` | verification only, then exits | never mutates; honours `--json` |
-| `doctor` | Phase 0 probe only, then exits | read-only: node, npm, git, Xcode CLT, Homebrew and each agent CLI, each missing row printing its own fix command. `--json` emits `{ ok, rows }`. Exits **1** when anything is missing, which is how CI gates on it |
-| `reset` | restore from a removal report, then exits | applies immediately; `--report=<name>` selects the report |
+| `doctor` | Phase 0 probe only, then exits | read-only: node, npm, git, Xcode CLT, Homebrew and each agent CLI, each missing row printing its own fix command. `--json` emits `{ ok, rows }`. Exits **1** when anything is missing, which is how CI gates on it. Because it is read-only, `doctor` and `status` **reject** `--install-*`, `--rotate-secrets` and `--allow-destructive` with exit 2 instead of ignoring them |
+| `reset` | restore from a removal report, then exits | `--report=<name>` selects the report; without `--dry-run` it restores immediately. `--dry-run` resolves exactly the candidates a real restore would use (same archive, same lookup order, same failures) and restores nothing — and, because a dry run changes nothing, it writes no report either |
+| `uninstall` | what *this installer* put on the machine (read-only ledger), then exits | plans by default; removal needs `--yes`, and `--no-input` without it is refused with exit 2. Output groups rows as removable / held back / already gone, each with its exact removal command. Only recorded installs appear — a Homebrew you installed yourself is never proposed | `lib/ledger.js` |
 | `archive` | detect → archive | |
 | `remove` | detect → remove | refuses without `--allow-destructive` **and** a verified archive |
 | `install` | detect → install (deploy shared-core) | the normal update command |
@@ -51,6 +52,10 @@ The command is the first non-flag argument and defaults to `all`. Invocation for
 | `--rotate-secrets` | | Re-prompts for variables that already have a value | `lib/secrets.js` |
 | `--json` | | `detect` prints the whole inventory; `status` prints `{ lines, state, archives }` | `install.js` |
 | `--report=<name>` | | For `reset`: which `reports/removal-<stamp>.json` to replay | `lib/restore.js` |
+| `--name=<a,b>` | | For `uninstall`: restrict the plan or removal to these package names. A name the ledger never recorded is reported, not guessed at | `lib/ledger.js` |
+| `--include-agent-clis` | | For `uninstall`: let it consider the agent CLIs we installed (pi / claude / codex). Held back by default, because removing the tool you are running is never a side effect of pruning | `lib/ledger.js` |
+| `--include-held-back` | | For `uninstall`: also consider runtime prerequisites (node, npm, git, Homebrew). Held back by default: `install.js` *is* Node, so removing its own runtime mid-run helps nobody | `lib/ledger.js` |
+| `--rebuild-from-reports` | | For `uninstall`: materialise the ledger from `reports/{brew,npm,agents}-*.json` written before 0.3.1, so an already-installed machine has something to plan from | `lib/ledger.js` |
 | `--agent=<a,b>` | | **Rejected (exit 2)** — per-tool filtering is not implemented, so the flag is refused instead of being silently inert | `install.js` |
 | `--strict` | | Exits **3** if any phase soft-failed (see [Exit codes](#exit-codes)); without it exit 0 only means the run finished | `install.js` |
 | `--help`, `-h` | | Prints usage and exits 0 before pre-flight or any phase runs. Same text as the `help` command | `install.js` |
@@ -76,16 +81,15 @@ summary block at the end of a run is still what tells you what actually happened
 | --- | --- |
 | `0` | Ran to completion — **including** a run where removal skipped, brew had missing rows, or some packages were unavailable (unless `--strict` was passed). Read the summary, don't infer from status |
 | `1` | Fatal: uncaught error (message only, or stack with `ASB_MODS_DEBUG=1`), or `shared-core` missing next to the installer. `asbmods doctor` additionally exits `1` when a prerequisite is missing — for that command the code is the answer, not a crash |
-| `2` | Bad usage: unknown command, unrecognised flag, invalid `--scope` value, `--agent` passed, or `--install-prereqs` / `--install-agents` under `--no-input` (an unattended run cannot consent to installing third-party software). Nothing was inspected or changed — the check runs before pre-flight |
+| `2` | Bad usage: unknown command, unrecognised flag, invalid `--scope` value, `--agent` passed, a mutating flag on a read-only command (`doctor`, `status`), `--install-prereqs` / `--install-agents` under `--no-input`, or `uninstall --yes` under `--no-input` (an unattended run cannot consent to installing or removing third-party software). Nothing was inspected or changed — the check runs before pre-flight |
 | `3` | `--strict` was passed and a phase soft-failed: archive incomplete, removal failures, install returned no actions, npm packages unresolvable, brew rows still missing after `--install-brew`, a prerequisite install command failed, an agent CLI install failed, or secrets verification failed |
 
 ## Reading the output
 
 Log lines are prefixed `[ok]`, `[warn]`, `[error]`, `[..]` and, for the brew missing-row digest, `[dim]`
 (green/yellow/red/cyan/grey on a TTY). Phases are separated by `── Phase N — Title ──` banners. The final
-**Summary** block is the machine-usable part. The numbers below are illustrative — shape and keys are what
-matter:
-part. The numbers below are illustrative — shape and keys are what matter:
+**Summary** block is the machine-usable part. The numbers below are illustrative — shape and keys
+are what matter:
 
 ```text
 ── Summary ──────────────────────────────────────────
