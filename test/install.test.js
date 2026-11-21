@@ -1352,6 +1352,86 @@ test('P12: an npm route is flagged only when a reader would paste it, not when d
   assert.ok(namedIt >= 3, 'the positive control is vacuous if no real doc names the npm route at all');
 });
 
+section('P13 — agent memory surfaces: named in docs, pinned by fixtures, untouched by a run');
+
+// Every path in this list is one docs/wiki/17-agent-memory-surfaces.md says asb-mods does not manage.
+// `memory: true` means a run must leave the bytes exactly as found; the false entries are the files
+// Phase 4 legitimately owns (its own managed blocks and generated hooks), kept here so the doc's claim
+// "every path below is a fixture" is literally true and so the contrast is visible in one table.
+// lib/docsync.js parses this array: a path added to wiki 17 without adding it here fails the suite.
+const MEMORY_SURFACES = [
+  { rel: '.pi/agent/AGENTS.md', memory: false },
+  { rel: '.pi/agent/settings.json', memory: false },
+  { rel: '.pi/agent/session-learnings/journal.jsonl', memory: true },
+  { rel: '.pi/agent/sessions/index.sqlite', memory: true },
+  { rel: '.pi/agent/prompt-history.jsonl', memory: true },
+    { rel: '.claude/CLAUDE.md', memory: true }, // no installer code path writes it — bytes must survive
+  { rel: '.claude/settings.json', memory: false },
+  { rel: '.claude/projects/-Users-me-dev-app/memory/MEMORY.md', memory: true },
+  { rel: '.claude/projects/-Users-me-dev-app/memory/ci-gotchas.md', memory: true },
+    { rel: '.codex/AGENTS.md', memory: false }, // Phase 4 appends its managed block here — installer-owned
+    { rel: '.codex/config.toml', memory: true }, // TOML is read, never rewritten — lib/deploy.js says so
+  { rel: '.codex/memories/MEMORY.md', memory: true },
+  { rel: '.codex/memories/memory_summary.md', memory: true },
+  { rel: '.codex/memories/raw_memories.md', memory: true },
+  { rel: '.codex/memories/rollout_summaries/2026-11-22.md', memory: true },
+  { rel: '.codex/rules/default.rules', memory: true },
+  { rel: '.codex/AGENTS.override.md', memory: true },
+];
+
+test('P13: a real run leaves every agent-authored memory byte-identical and out of every report', () => {
+  for (const s of MEMORY_SURFACES) {
+    const abs = path.join(HOME, s.rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    if (!fs.existsSync(abs)) fs.writeFileSync(abs, `sentinel content for ${s.rel}\n`);
+  }
+  const before = new Map(MEMORY_SURFACES.map((s) => [s.rel, fs.readFileSync(path.join(HOME, s.rel))]));
+
+  const r = run(['--allow-destructive', '--yes', '--no-input']);
+  assert.equal(r.status, 0, `a second real run failed: ${r.out.slice(-500)}`);
+
+  // The witness that this run actually did work, so "memory unchanged" is not a vacuous pass.
+  // The witness that this run actually did work, so "memory unchanged" is not a vacuous pass: Phase 6
+  // registered its managed hooks, each tagged `# asb-mods:<id>`, into the host's own settings file.
+  const hooks = readJSON(path.join(HOME, '.claude/settings.json')).hooks || {};
+  const managed = JSON.stringify(hooks).match(/asb-mods:[a-z_]+/g) || [];
+  assert.ok(managed.length >= 3,
+    `the run registered ${managed.length} managed hooks, so it proved nothing about what a run touches`);
+
+  const touched = MEMORY_SURFACES.filter((s) => {
+    const abs = path.join(HOME, s.rel);
+    return !fs.existsSync(abs) || !fs.readFileSync(abs).equals(before.get(s.rel));
+  }).map((s) => s.rel);
+  for (const s of MEMORY_SURFACES) {
+    if (s.memory) assert.ok(!touched.includes(s.rel),
+      `install rewrote ${s.rel}, which wiki 17 promises is agent-authored and unmanaged`);
+  }
+
+  // Reports legitimately *name* protected paths — that is the point of `protectedEvidence.samples`, so a
+  // reader can audit scope. What must never happen is a memory surface classified as something the run
+  // took, so the check walks every report and flags any mention outside a protected section.
+  const reportsDir = path.join(STATE, 'reports');
+  const reports = fs.existsSync(reportsDir) ? fs.readdirSync(reportsDir).filter((f) => f.endsWith('.json')) : [];
+  assert.ok(reports.length >= 3, `only ${reports.length} report(s) exist — the scope check below has nothing to read`);
+  const swept = [];
+  for (const f of reports) {
+    const scan = (o, at) => {
+      if (Array.isArray(o)) { o.forEach((v, i) => scan(v, `${at}[${i}]`)); return; }
+      if (o && typeof o === 'object') { Object.entries(o).forEach(([k, v]) => scan(v, `${at}/${k}`)); return; }
+      if (typeof o !== 'string') return;
+      if (/protected/i.test(at)) return;
+      const hit = MEMORY_SURFACES.find((s) => s.memory && o.endsWith(s.rel));
+      if (hit) swept.push(`${hit.rel}\t${f} ${at}`);
+    };
+    scan(readJSON(path.join(reportsDir, f)), '');
+  }
+  for (const s of MEMORY_SURFACES) {
+    if (!s.memory) continue;
+    const hits = swept.filter((l) => l.startsWith(s.rel + '\t'));
+    assert.deepEqual(hits, [], `${s.rel} is classified as taken rather than protected in: ${hits.slice(0, 2).join(' | ')}`);
+  }
+});
+
 section('bootstrap.sh — the only part of the repository that runs without Node');
 
 // install.js *is* Node, so a machine without it cannot be helped by the package. bootstrap.sh is
@@ -1559,6 +1639,93 @@ section('install ledger — what the installer put on the machine, and how to ta
     assert.strictEqual(restoreReports().length, before, 'a dry-run restore wrote a report of a restore');
   });
 }
+
+test('P13: wiki 17 and MEMORY_SURFACES name exactly the same surfaces, in both directions', () => {
+  const wiki = fs.readFileSync(path.join(PKG, 'docs/wiki/17-agent-memory-surfaces.md'), 'utf8');
+  // Table rows are the page's claims about specific paths; prose uses brace globs to describe Phase 5
+  // selectors, which are a different thing and must not be demanded as fixtures.
+  const docPaths = [...new Set([...wiki.matchAll(/^\|\s*`(~\/[^`]+)`/gm)].map((m) => m[1]))];
+  assert.ok(docPaths.length >= 14, `wiki 17 only names ${docPaths.length} paths in its tables — the page is not describing the surfaces any more`);
+
+  const rels = MEMORY_SURFACES.map((s) => s.rel);
+  // `<project-slug>` and `<topic>.md` are how the page describes a family of paths, so a placeholder
+  // segment becomes a wildcard — otherwise the matcher demands a fixture literally named "<topic>.md".
+  // Plain segment matching rather than a built regex: the escaping version matched the placeholder
+  // *literally* (`<project-slug>` stayed in the pattern), which surfaced as "fixture missing" instead
+  // of a matcher bug. A placeholder segment accepts any one segment; `<topic>.md` additionally anchors
+  // the literal suffix. The self-check below has to pass before the two directions are trusted.
+  const segMatch = (seg, want) => {
+    if (!seg.startsWith('<')) return seg === want;
+    const suffix = seg.slice(seg.indexOf('>') + 1);
+    return want.endsWith(suffix) && want.length >= suffix.length;
+  };
+  const covers = (docPath, rel) => {
+    const a = docPath.replace(/^~\//, '').replace(/\/+$/, '').split('/');
+    const b = rel.split('/');
+    if (docPath.endsWith('/')) return a.length <= b.length && a.every((seg, i) => segMatch(seg, b[i]));
+    return a.length === b.length && a.every((seg, i) => segMatch(seg, b[i]));
+  };
+  assert.ok(covers('~/.claude/projects/<project-slug>/memory/MEMORY.md', '.claude/projects/-x/memory/MEMORY.md'),
+    'the path matcher is broken: a whole-segment placeholder did not match');
+  assert.ok(covers('~/.claude/projects/<project-slug>/memory/<topic>.md', '.claude/projects/-x/memory/ci-gotchas.md'),
+    'the path matcher is broken: an embedded placeholder did not match');
+  assert.ok(covers('~/.codex/memories/rollout_summaries/', '.codex/memories/rollout_summaries/2026-11-22.md'),
+    'the path matcher is broken: a directory row did not match its contents');
+  assert.ok(!covers('~/.codex/memories/MEMORY.md', '.codex/memories/raw_memories.md'),
+    'the path matcher is broken: it matched a different file as the same surface');
+  assert.ok(!covers('~/.claude/CLAUDE.md', '.pi/agent/AGENTS.md'),
+    'the path matcher is broken: it matched across hosts');
+
+  const uncovered = docPaths.filter((p) => !rels.some((rel) => covers(p, rel)));
+  assert.deepEqual(uncovered, [], 'wiki 17 claims surfaces with no fixture (an invented path would sail through today): ' + uncovered.join(', '));
+  const undocumented = rels.filter((rel) => !docPaths.some((p) => covers(p, rel)));
+  assert.deepEqual(undocumented, [], 'MEMORY_SURFACES pins surfaces the page never mentions: ' + undocumented.join(', '));
+
+  // The page's whole point is that these are unmanaged: if a future slice starts managing one, the
+  // fixture flag and the page have to change together, not one silently.
+  const managedClaim = /asb-mods does \*\*not\*\* touch|None of those globs reaches a memory tree/.test(wiki);
+  assert.ok(managedClaim, 'wiki 17 no longer states what it does and does not touch, so MEMORY_SURFACES has no claim to check against');
+  assert.ok(MEMORY_SURFACES.some((s) => s.memory), 'the fixture marks nothing as agent-authored memory, so the untouched proof is vacuous');
+  assert.ok(MEMORY_SURFACES.some((s) => !s.memory), 'the fixture marks nothing as installer-owned, so the contrast is vacuous');
+});
+
+test('P13: shared-core/skills/README.md lists the payload exactly, and nothing deploys what it does not list', () => {
+  const readmePath = path.join(PKG, 'shared-core/skills/README.md');
+  assert.ok(fs.existsSync(readmePath), 'shared-core/skills/README.md is missing — the tree has no contract');
+  const readme = fs.readFileSync(readmePath, 'utf8');
+  const skillsRoot = path.join(PKG, 'shared-core/skills/canonical');
+  const dirs = fs.readdirSync(skillsRoot, { withFileTypes: true })
+    .filter((e) => e.isDirectory()).map((e) => e.name).sort();
+  assert.ok(dirs.length >= 4, `only ${dirs.length} canonical skills in the payload — the README check is near-vacuous`);
+  // Table rows are the list; prose mentions `canonical/` and `shared-core/skills/`, which are directories
+  // too but not skills, so matching every backticked path in the file would compare the wrong sets.
+  const listed = [...new Set([...readme.matchAll(/^\|\s*`([a-z0-9][a-z0-9-]*)\/`\s*\|/gm)].map((m) => m[1]))].sort();
+  assert.deepEqual(listed, dirs, 'README lists a different set of skills than the payload ships');
+
+  // The claim that matters operationally: canonical skills deploy through installAgent's canonical
+  // pass, so every one of them must actually land in the three hosts.
+  for (const d of dirs) {
+    assert.ok(fs.existsSync(path.join(skillsRoot, d, 'SKILL.md')), `skills/${d}/ has no SKILL.md, so it deploys an empty skill`);
+    assert.ok(fs.existsSync(path.join(HOME, '.claude/skills', d, 'SKILL.md')),
+      `skills/${d} never reached ~/.claude/skills — the README says all hosts get it`);
+  }
+});
+
+test('PLAN-DECISIONS.md cannot silently shrink again (it was lost once)', () => {
+  // The original decision log was never committed and an in-progress edit truncated it beyond recovery.
+  // The reconstruction is smaller than what was lost and says so; this guard is what stops the next
+  // truncation from shipping quietly.
+  const p = path.join(PKG, 'PLAN-DECISIONS.md');
+  assert.ok(fs.existsSync(p), 'the decision log is missing entirely');
+  const t = fs.readFileSync(p, 'utf8');
+  for (const h of ['D1 —', 'D2 —', 'D3 —', 'D4 —', 'D5 —', 'D6 —', 'D7 —']) {
+    assert.ok(t.includes('## ' + h), `decision log lost section ${h}`);
+  }
+  const findings = t.split('\n').filter((l) => /^\| F\d+ \|/.test(l));
+  assert.ok(findings.length >= 20, `only ${findings.length} finding rows — the caliper findings table was truncated`);
+  assert.ok(Buffer.byteLength(t) > 8000, `${Buffer.byteLength(t)} bytes — the log shrank below its reconstructed size`);
+  assert.match(t, /Limitation [Nn]umber|§5 limitation|limitation 3\d/, 'the log stopped citing the plan limitation rows it answers to');
+});
 
 console.log(`\n${passed} passed, ${failures.length} failed`);
 if (failures.length) {

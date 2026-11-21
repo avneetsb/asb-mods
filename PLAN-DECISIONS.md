@@ -1,0 +1,139 @@
+# Decision log — 0.3.x slicing and the 0.4.0 plan
+
+Authority: `plan/2026-11-21_agent-compat-040.md`. Divergences go here. Every "done" below names the
+slice id and what a checker runs; a claim with no live-machine proof says so in its own sentence.
+
+**Loss notice (2026-11-22).** The original version of this file — D1–D6 plus a finding-by-finding
+appendix — was never committed, and an in-progress edit truncated it. It could not be restored from git
+(no commit and no dangling blob ever contained it) or from the session transcript (which stores digests,
+not full tool payloads). What follows is **re-derived** from `git log`, the code, the test suite and the
+plan; it is a reconstruction, not the original prose, and it is committed the moment it was written so the
+same accident cannot repeat. `test/install.test.js` now refuses a shrunken decision log.
+
+## D1 — Scope narrowed to three hosts (2026-11-21)
+
+**Decision.** pi, Claude Code and Codex CLI only, in code, payload, docs and tests.
+**Rejected.** "Mention the others, ship three" — a named surface is a broken promise as soon as its config
+format is read on a machine that does not have it.
+**Status.** Done, amended by D4. **Claims:** verified — a case-insensitive scan of `*.md *.js *.json *.sh`
+for out-of-scope *runtime* names returns zero, checked before the first commit and re-checked by tests.
+
+## D2 — O1 came first, unconditionally (2026-11-22)
+
+**Decision.** Fix the prompt/EOF hang before anything that adds a new entry point. `confirm()` resolves on
+readline `close` as a refusal and child stdin is closed; interactivity is judged on `process.stdin.isTTY`,
+not on whether stdout is a pipe (the old rule refused to prompt exactly when a human was attached, in
+`lib/prereqs.js`).
+**Rejected.** Shipping `doctor` first — surfacing "missing" behind the same defect that hangs CI.
+**Status.** Done, committed `10ae374`. **Claims:** `npm test` 92 passed / 0 failed at that commit, with an
+EOF-with-timeout-kill test (hang made visible, never sleep-polled) and a closed-stdin variant.
+
+## D3 — P1: one place owns paths, env, phase order (2026-11-22)
+
+**Decision.** `lib/paths.js` paths + env reads; `lib/payload.js` placeholder vocabulary and payload
+coupling; `lib/prereqs.js` toolchain; `DEPENDENCY-MAP.json` read as data, not restated.
+**Rejected.** A big-bang rewrite of `install.js`. **Status.** Partial: paths/env/toolchain consolidated;
+`lib/state.js`, `lib/render/*`, the host capability matrix and `asbmods-mcp` are **open** (§1, §2, Q1).
+**Claims — read the qualifiers.** "Absolute paths are gone" is *not* verified; the packable tarball has
+never been run as an installer, only `npm pack --dry-run` inventories (§5 limitation 39) — that sentence
+lives here precisely so it cannot become a claim. "Every phase idempotent" is likewise demonstrated only
+on the fake-home e2e, never on a live machine.
+
+## D4 — Cursor removed from scope; nothing deleted (2026-11-21)
+
+**Decision.** No adapter, payload entry or doc names a fourth runtime; vendored `caveman`/`ponytail` keep
+their *own* multi-agent install docs intact, documented as personal tooling under §9's vendoring rules.
+**Rejected.** Scrubbing upstream skill prose — we would be editing code we do not own to satisfy our scope
+note, and it changes nothing operationally.
+**Status.** Done; D1's scope rail still passes (the names appear only as inert upstream content, never in
+our generators or registers).
+
+## D5 — Host-local memory on purpose (2026-11-21)
+
+**Decision.** Cross-host sharing happens in tool stores (engram over loopback HTTP; Mnemosyne's shared
+surface), never by merging two runtimes' memory formats. Each host keeps its own store; `source_agent`
+tags rows written through us.
+**Rejected.** Shared `.md` pools and a shared `MEMORY.md`. Per §7.4, two agents appending to one file do
+not merge and do not lock; the last flush wins and a host quietly loses another's recollection.
+**Status.** Done — `docs/wiki/17-agent-memory-surfaces.md` documents all of it (see D7).
+**Claims:** *no* live three-host round-trip has been run. What is proven is the protection half:
+`MEMORY_SURFACES` in `test/install.test.js` lays down every documented surface inside a throwaway home and
+requires the bytes to survive a real run untouched. Locking remains limitation 37.
+
+## D6 — Vendored memory components keep their own stores (2026-11-21)
+
+**Decision.** Engram runs as one loopback HTTP server shared by all three hosts — the pattern the
+caliper-harness study showed works. **Rejected:** three databases, or every host writing SQLite directly.
+**Status.** Design agreed; the 0.4.0 single-server wiring (§2, Q5) is **open**; we vendor and register the
+copy, we do not fork storage. **Claims:** nothing here is load-tested; "single writer" is *design intent*,
+which is why limitation 37 stays open rather than being marked mitigated.
+
+## D7 — What P12 actually is; a page-numbering deviation; a destructive bug caught (2026-11-22)
+
+**My task labels drifted and the plan was right.** §10's `P13` row is *dependency-aware brew removal*
+(limitation 37), not documentation. `P12` is the docs-coupling guard, and it is **done**: `lib/docsync.js`
+checks commands ⊆ wiki 04, parsed flags ⊆ wiki 04, `ASB_MODS_*` both directions, payload dirs ⊆ wiki 06
+(with `tooling/` cross-pointed at wiki 07, whose page must actually name the subtree), `Phase N` banners ⊆
+wiki 03, and no doc may tell a reader to run an `@asbmods/install` npm route while publishing is parked.
+**`P13` (brew dependency check) is still open.**
+
+**Page numbering.** The memory page was to be wiki 08 and runtime layout wiki 09; `08-protection-model.md`
+and `09-secrets-and-env.md` already exist and carry links, so memory shipped as **17**. The runtime-layout
+/ what-changed page is **still open** and will be 18 rather than squeezed into 08/09.
+
+**Bug found by the slice's own fixture, and fixed.** `MEMORY_SURFACES` requires a sentinel
+`~/.codex/AGENTS.override.md` to survive a run. It did not: with `--allow-destructive` the installer
+archived and removed it (recoverable under `~/.asb-mods/backups/<ts>/codex/`, and named in the removal
+report — but never something we should take). That file silently outranks the `AGENTS.md` Phase 4 manages,
+so losing it changes what Codex reads with no signal. `lib/detect.js` `PROTECT_NAMES` now covers
+`AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`, `memories/` and `rules/`; reproduced before and after
+(sentinel preserved, `~/.codex/prompts/personal.md` still swept as intended, report no longer names the
+override). Recorded as §5 limitation 40.
+
+**Three claims in my own first draft of the memory page were false and were corrected against code:**
+(a) "asb-mods deploys `~/.claude/CLAUDE.md`" — no code path writes it; (b) "an existing override is
+reported rather than written over" — it was archived, see above; (c) "engram is one server for the three
+hosts" — we install and register it but implement neither its storage nor a lock, so the page states
+one-writer as intent and points at limitation 37. `~/.codex/AGENTS.md` turned out to be installer-owned
+(Phase 4 appends its managed block) and is flagged so the untouched list describes only files nothing
+writes.
+
+**Also this slice:** `shared-core/skills/README.md` (tree contract for the four canonical skills) is
+listed in `lib/payload.js` `UNREAD`, because deployment walks `skills/canonical/` and nothing opens it;
+and doc-to-fixture path matching is done without regexes — escaping left `<project-slug>` literal, which
+presented as a missing fixture rather than a broken matcher. Suite at **102 passed / 0 failed**.
+
+## Findings from the caliper-harness study, and where each stands
+
+The read-only caliper-harness study checkout — its location is deliberately not recorded here, since a personal absolute path is exactly what the leak screens below refuse; plan §6 holds the analysis. Status is
+per `git log`, the code and the suite at HEAD, not per intention.
+
+| Id | Finding in one line | Slice | Status today |
+| --- | --- | --- | --- |
+| F2 | One file owns the phase sequence | P1 | Partial — `lib/paths.js` / `lib/payload.js` extracted; `lib/pipeline.js` open |
+| F3 | Declarative renderer, one `mode:` per host | P2 | Open (0.4.0 §2) |
+| F4 | State root `~/.asb-mods/{toolchain,bin}` with a lock | P4 | Partial — `lib/paths.js` models both roots; no runtime layout yet |
+| F5 | Single `asbmods-mcp` binary + data-only server table | P3 | Open (0.4.0 §2) |
+| F6 | Doctor table names the missing thing *and* its fix command | P14 | Done — `asbmods doctor`, committed with the 0.2.0 CLI work |
+| F7 | Toolchain lives under state root, PATH is a consequence | M1/M2 | Partial — `lib/prereqs.js` reports and installs; **M1** (node + Homebrew bootstrap) open |
+| F8 | One writer per store; others talk to a server | D6 | Design agreed; wiring open; limitation 37 stands |
+| F9 | `config/` payload read by no code | P7 | Open — enumerated honestly instead, in `lib/payload.js` `UNREAD` |
+| F10 | No offline/self-contained bootstrap artifact | M5 | Open |
+| F11 | Payload↔code coupling unasserted; some payload read by nobody | P6 | **Done** — `OWNED`/`UNREAD` + bundle-aware coverage; `config/` named as unread |
+| F12 | Doc truth unguarded | P12 | **Done** — `lib/docsync.js`, six checks, each proven to bite |
+| F13 | Tests all e2e-tier, slow and ungrouped | P9/P10 | Open — unit tier exists for new pure modules only, no CI yet |
+| F14 | No CI on this repo | P11 | Open (P12/P5/P6 gates exist to be wired) |
+| F15 | No coverage measurement | P9 | Open |
+| F16 | Prompt hangs on EOF (limitation 32) | O1 | **Done** — `10ae374`, EOF test kills on timeout |
+| F17 | Codex has four surfaces, not one | P13-docs | **Done** — documented in wiki 17 with verified paths |
+| F18 | Memory surfaces unmanaged and unprotected | P13-docs/O8 | **Fixed for removal** (`PROTECT_NAMES`); recording/compaction still open (O6) |
+| F19 | Shared skills must reach all three hosts identically | T24/P8 | Partial — canonical skills deploy to three hosts and are asserted; lock-free registry open |
+| F20 | Runtime layout undocumented | P13-docs | Open — will be wiki 18 |
+| F21 | Brew removal ignores dependents (limitation 37) | P13 | Open — the plan's actual P13; `brew uses --installed` gate pending |
+
+## Reading rules, since this file is public
+
+Never write into this repository, or any artifact generated from it: employer names, client names, repo
+names, internal endpoints, ticket keys, personal absolute paths — including the study checkout's location, which is why it is named and never
+addressed — key material or fragments. `test/install.test.js` runs
+both leak screens on every `npm test`; a violation fails the suite rather than the release.

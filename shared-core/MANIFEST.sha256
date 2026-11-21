@@ -32,6 +32,7 @@ af1658210028e3921efbd00b37a25c3493e93c3f0d1732f39e8e085e53087b22  ./prompts/adap
 58f9f765306b285c661b86777e2097b3efb43dabe9e19d42f795e88faf9081a2  ./skills/canonical/gitnexus/SKILL.md
 4081a50ae285a7a4e48eda8f95ad230e660d3cf629e647e44aa0bf94b27279c3  ./skills/canonical/paseo/SKILL.md
 9badd22a32e19cb884e46dfa8d3aae82bb81dfa5484105b8b4f0262df823a509  ./skills/canonical/ponytail/SKILL.md
+d1d78e320bd5242d28e7431819cce51e3dcbabb7a988bf1ab1084fe85200b780  ./skills/README.md
 606e84e76435433c3227bd4e76cf03d96cda3a4da280826013710147960bff6c  ./tooling/agents/scripts/canary.py/canary.py
 55667275132dafa2c1c4d2915d7b9c601e3bdac3818c8c53e3e0248cb8ccc6e6  ./tooling/agents/scripts/cross_session_proof.py/cross_session_proof.py
 29d2cef3bf688004e9ebddfc6d39d1df3f2541083bc7b7429d705306662aea51  ./tooling/agents/scripts/fresh_pi_sessions.py/fresh_pi_sessions.py
