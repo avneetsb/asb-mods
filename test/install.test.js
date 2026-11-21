@@ -1123,6 +1123,54 @@ test('O1: interactivity is judged on stdin and confirm() resolves on EOF', () =>
     'secret collection must not prompt a stdin that cannot answer');
 });
 
+section('P5 — one placeholder factory; a payload token the factory does not emit fails the pack');
+
+// shared-core/** ships {{HOME}}/{{STATE_DIR}}/{{CORE}} and nothing else. Before P5 that vocabulary was
+// re-typed inline at three call sites (deploy.js twice, hooks.js once) and no code looked at a payload
+// file, so a fragment carrying {{WORKSPACE_DIR}} would have deployed to a target machine as a literal
+// string and nobody would have noticed. lib/fsx.js vars() now owns the map, PLACEHOLDER_TOKENS owns the
+// name list, and scripts/check-payload-tokens.cjs is the pack-time gate that ties them together.
+function runTokenLint(args) {
+  return cp.spawnSync(process.execPath, [path.join(PKG, 'scripts/check-payload-tokens.cjs'), ...args], {
+    cwd: PKG, encoding: 'utf8',
+  });
+}
+
+test('P5: the shipped payload passes the lint, and the lint is actually looking at it', () => {
+  const r = runTokenLint(['--core=' + path.join(PKG, 'shared-core'), '--json']);
+  assert.equal(r.status, 0, `shipped payload failed its own lint: ${r.stdout}${r.stderr}`);
+  const report = JSON.parse(r.stdout);
+  assert.ok(report.filesScanned > 100, `the lint scanned only ${report.filesScanned} files — it is not covering the payload`);
+  assert.ok(report.tokenHits > 0, 'the lint found no placeholders at all, so a vocabulary change would go unnoticed');
+  assert.deepEqual(report.allowed, ['HOME', 'STATE_DIR', 'CORE'],
+    'the placeholder vocabulary changed; update this contract and every host config that consumes it');
+});
+
+test('P5: a payload token no module resolves fails the pack, naming the file and line', () => {
+  const bad = path.join(PKG, 'test-tmp', 'tok-fixture');
+  fs.mkdirSync(path.join(bad, 'sub'), { recursive: true });
+  fs.writeFileSync(path.join(bad, 'sub', 'fragment.json'), '{"hook":"{{HOME}}/x","oops":"{{WORKSPACE_DIR}}"}\n');
+  const r = runTokenLint(['--core=' + bad]);
+  assert.equal(r.status, 1, 'an unresolved payload token must fail the pack, not deploy as a literal');
+  assert.match(`${r.stdout}${r.stderr}`, /\{\{WORKSPACE_DIR\}\} at sub\/fragment\.json:1/,
+    'the failure has to name the token and where it is, or it cannot be fixed');
+});
+
+test('P5: a lint that scanned nothing reports failure, never success', () => {
+  const empty = path.join(PKG, 'test-tmp', 'tok-empty-core');
+  fs.mkdirSync(empty, { recursive: true });
+  const r = runTokenLint(['--core=' + empty]);
+  assert.equal(r.status, 1, 'an empty scan is not evidence of a clean payload (limitation 38)');
+  assert.match(`${r.stdout}${r.stderr}`, /scanned nothing/);
+});
+
+test('P5: lib/fsx.js is the only file that writes out a placeholder map', () => {
+  const sources = ['install.js', ...fs.readdirSync(path.join(PKG, 'lib'))
+    .filter((f) => f.endsWith('.js') && f !== 'fsx.js').map((f) => `lib/${f}`)];
+  const offenders = sources.filter((rel) => /'\{\{(HOME|STATE_DIR|CORE)\}\}'\s*:/.test(fs.readFileSync(path.join(PKG, rel), 'utf8')));
+  assert.deepEqual(offenders, [], 'an inline placeholder map drifts from the factory — build it with X.vars(P)');
+});
+
 section('bootstrap.sh — the only part of the repository that runs without Node');
 
 // install.js *is* Node, so a machine without it cannot be helped by the package. bootstrap.sh is

@@ -18,7 +18,8 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node test/install.test.js"
+    "lint:payload-tokens": "node scripts/check-payload-tokens.cjs",
+    "test": "node scripts/check-payload-tokens.cjs && node test/install.test.js"
   },
   "keywords": [
     "pi",
