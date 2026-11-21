@@ -182,8 +182,17 @@ function validateUsage(command, flags) {
 
 function confirm(question) {
   if (process.env.ASB_MODS_ASSUME_YES === '1') return Promise.resolve(true);
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => rl.question(question, (a) => { rl.close(); resolve(/^(y|yes)$/i.test(a.trim())); }));
+  // An unattended run — CI, `curl | sh`, or any prompt that simply gets EOF — never fires
+  // readline's answer callback, so awaiting it alone waits forever. EOF is a refusal: when
+  // nobody was able to answer, nothing destructive proceeds. (Probe-confirmed 2026-11-22:
+  // `install.js --confirm` with stdin at /dev/null hung instead of refusing.)
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    let settled = false;
+    const settle = (answer) => { if (settled) return; settled = true; rl.close(); resolve(answer); };
+    rl.question(question, (a) => settle(/^(y|yes)$/i.test(a.trim())));
+    rl.on('close', () => settle(false));
+  });
 }
 
 function preflight() {
@@ -192,7 +201,7 @@ function preflight() {
   const major = parseInt(process.versions.node.split('.')[0], 10);
   checks.push(['node >= 18', major >= 18, `found ${process.versions.node}`]);
   let git = true;
-  try { execFileSync('git', ['--version'], { stdio: 'pipe' }); } catch { git = false; }
+  try { execFileSync('git', ['--version'], { stdio: ['ignore', 'pipe', 'pipe'] }); } catch { git = false; }
   checks.push(['git available', git, git ? 'enables archive tagging + rollback' : 'archive tags disabled']);
   checks.push(['shared-core found', X.isDir(P.CORE), P.CORE]);
   checks.push(['home target', X.isDir(P.HOME), P.HOME + (process.env.ASB_MODS_HOME ? ' (overridden)' : '')]);

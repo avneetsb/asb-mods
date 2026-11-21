@@ -1009,6 +1009,120 @@ test('--install-agents dry-run reports each tool and starts no install', () => {
   assert.match(r.out, /not on PATH|no install route resolved/);
 });
 
+section('O1 — a prompt that gets EOF refuses instead of hanging (slice O1)');
+
+// An unattended run — CI, `curl | sh`, a heredoc — feeds the prompt an end-of-file, which
+// never fires readline's answer callback. A confirm() awaiting only that callback waited
+// forever: the run hung instead of refusing. Probed 2026-11-22 against the previous shape:
+// the prompt printed and never resolved, with stdin as /dev/null, as an empty pipe, and as a
+// closed descriptor. Both tests below carry a hard kill timer, so a regression fails here
+// rather than hanging the suite.
+function runWithClosedStdin(args, extraEnv = {}, killMs = 300000) {
+  const r = cp.spawnSync(process.execPath, [path.join(PKG, 'install.js'), ...args], {
+    cwd: PKG,
+    encoding: 'utf8',
+    input: '',
+    timeout: killMs,
+    env: { ...process.env, ASB_MODS_HOME: HOME, ASB_MODS_CORE: path.join(PKG, 'shared-core'), XDG_CONFIG_HOME: XDG, NO_COLOR: '1', ...extraEnv },
+  });
+  return {
+    timedOut: !!r.error && r.error.code === 'ETIMEDOUT',
+    status: r.status,
+    signal: r.signal,
+    errorCode: (r.error && r.error.code) || null,
+    out: `${r.stdout || ''}${r.stderr || ''}`,
+  };
+}
+
+test('O1: --allow-destructive without --yes declines on EOF stdin and deletes nothing', () => {
+  const target = path.join(HOME, '.pi/agent/extensions/alpha.ts');
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  const sentinel = '// must-survive-a-run-that-could-not-answer\n';
+  fs.writeFileSync(target, sentinel);
+  const r = runWithClosedStdin(['--allow-destructive']);
+  assert.ok(!r.timedOut,
+    `killed by the kill timer — the prompt waited for input EOF cannot supply. tail: ${r.out.slice(-400)}`);
+  assert.match(r.out, /removal declined/, 'EOF must be reported as a refusal, not silence');
+  assert.equal(fs.readFileSync(target, 'utf8'), sentinel,
+    'a run nobody answered must leave custom tooling on disk (asserted on file content, not on output)');
+});
+
+test('O1: --install-prereqs on a pipe answers its prompt as a refusal and runs nothing', () => {
+  // The prompt itself must be reached (so this is a real EOF test, not a dry-run skip) and the
+  // answer must be "no". A fake brew owns PATH for the run: adoption only kicks in when no brew
+  // is on PATH, so a regression that auto-accepted would execute the fake — never the real
+  // Homebrew on the machine running the suite. The marker file is the proof nothing executed.
+  const fakebin = path.join(PKG, 'test-tmp', 'fakebin');
+  const marker = path.join(PKG, 'test-tmp', 'brew-executed.log');
+  fs.mkdirSync(fakebin, { recursive: true });
+  fs.rmSync(marker, { force: true });
+  fs.writeFileSync(path.join(fakebin, 'brew'), [
+    '#!/bin/sh',
+    'if [ "$1" = "--version" ]; then echo "Homebrew 9.9.9-FAKE-WINS"; exit 0; fi',
+    'if [ "$1" = "install" ] || [ "$1" = "uninstall" ] || [ "$1" = "remove" ]; then',
+    '  echo "$*" >> "${ASB_TEST_BREW_MARKER:-/dev/null}"; exit 0',
+    'fi',
+    'echo ""',
+    'exit 0',
+    '',
+  ].join('\n'), { mode: 0o755 });
+  const r = runWithClosedStdin(['--install-prereqs'], {
+    PATH: `${fakebin}:/usr/bin:/bin:/usr/sbin:/sbin`,
+    ASB_TEST_BREW_MARKER: marker,
+  });
+  assert.ok(!r.timedOut, 'the prerequisite confirmation hung on a stdin that cannot answer');
+  assert.match(r.out, /Install the prerequisites above\? \[y\/N\]/,
+    `the prompt was never reached, so this proves nothing about EOF. status=${r.status} signal=${r.signal} error=${r.errorCode} outLen=${r.out.length} tail=${JSON.stringify(r.out.slice(-200))}`);
+  assert.match(r.out, /prerequisite install declined/, 'EOF must decline the install, not proceed');
+  assert.ok(!fs.existsSync(marker),
+    `commands were executed for a prompt nobody answered: ${fs.existsSync(marker) ? fs.readFileSync(marker, 'utf8') : ''}`);
+});
+
+// The same defect class is one line wide anywhere else: a child process spawned with the
+// installer's stdin inherits a terminal that is not there. Guards below keep it from
+// reappearing silently — every child call must state its stdin policy, and the three sites
+// that deliberately inherit do so for a stated reason (their child reads EOF immediately; no
+// Node-side prompt is involved).
+const INHERIT_ALLOWLIST = {
+  'lib/agents.js': 1,
+  'lib/prereqs.js': 1,
+  'lib/ledger.js': 1,
+};
+
+test('O1: every child-process call states its stdin policy; inherit stays on the allow-list', () => {
+  const sources = ['install.js', ...fs.readdirSync(path.join(PKG, 'lib')).filter((f) => f.endsWith('.js')).map((f) => `lib/${f}`)];
+  const callRe = /\.(spawnSync|execFileSync|execSync|spawn|execFile|exec)\s*\(/g;
+  const offenders = [];
+  const inheritCounts = {};
+  for (const rel of sources) {
+    const src = fs.readFileSync(path.join(PKG, rel), 'utf8');
+    inheritCounts[rel] = (src.match(/stdio:\s*'inherit'/g) || []).length;
+    for (const m of src.matchAll(callRe)) {
+      const window = src.slice(m.index, m.index + 500);
+      if (!/stdio\s*:|stdin\s*:/.test(window)) offenders.push(`${rel}: ${window.split('\n')[0].trim().slice(0, 80)}`);
+    }
+  }
+  assert.deepEqual(offenders, [], 'child process inheriting stdin can block on a terminal that does not exist');
+  const unexpected = Object.entries(inheritCounts)
+    .filter(([rel, n]) => n !== (INHERIT_ALLOWLIST[rel] || 0))
+    .map(([rel, n]) => `${rel}: ${n} site(s) inherit the terminal, allow-list allows ${INHERIT_ALLOWLIST[rel] || 0}`);
+  assert.deepEqual(unexpected, [],
+    'a new terminal-inheriting spawn needs a stated reason before it can prompt an unattended run');
+});
+
+test('O1: interactivity is judged on stdin and confirm() resolves on EOF', () => {
+  const prereqs = fs.readFileSync(path.join(PKG, 'lib/prereqs.js'), 'utf8');
+  assert.match(prereqs, /process\.stdin\.isTTY/,
+    'prerequisite planning must ask whether stdin can answer, not whether stdout is a terminal');
+  assert.ok(!/interactive\s*:\s*Boolean\(\s*process\.stdout\.isTTY\s*\)/.test(prereqs),
+    'the stdout-only interactivity check (limitation 26) is back');
+  const installer = fs.readFileSync(path.join(PKG, 'install.js'), 'utf8');
+  const confirmBody = installer.slice(installer.indexOf('function confirm'), installer.indexOf('function confirm') + 1400);
+  assert.ok(confirmBody.includes("rl.on('close'"), 'confirm() must settle when stdin closes');
+  assert.match(fs.readFileSync(path.join(PKG, 'lib/secrets.js'), 'utf8'), /process\.stdin\.isTTY/,
+    'secret collection must not prompt a stdin that cannot answer');
+});
+
 section('bootstrap.sh — the only part of the repository that runs without Node');
 
 // install.js *is* Node, so a machine without it cannot be helped by the package. bootstrap.sh is
