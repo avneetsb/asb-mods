@@ -472,6 +472,13 @@ async function main() {
       else log('info', `${results.brew.presentCount}/${results.brew.considered} present, ${results.brew.missingCount} missing (pass --install-brew to install)`);
       if (results.brew.missing.length) log('dim', `missing: ${results.brew.missing.slice(0, 12).join(', ')}${results.brew.missing.length > 12 ? ' …' : ''}`);
     }
+    // A row this package will never install is named, not counted in silence — it is exactly the
+    // kind of row an operator has to act on, and both branches (plan and --install-brew) say so.
+    const held = (results.brew && results.brew.deferred) || [];
+    for (const d of held.slice(0, 12)) log('dim', `held back: ${d.name} — ${d.reason}`);
+    if (held.length > 12) log('dim', `… ${held.length - 12} more held-back row(s) recorded in the report`);
+    const vmis = (results.brew && results.brew.voided) || [];
+    if (vmis.length) log('dim', `${vmis.length} inventory row(s) voided: same name+version as a cask row, so one artefact counted once`);
   }
 
   // ---- env + secrets -----------------------------------------------------

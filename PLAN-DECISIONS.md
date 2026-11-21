@@ -243,3 +243,56 @@ Never write into this repository, or any artifact generated from it: employer na
 names, internal endpoints, ticket keys, personal absolute paths — including the study checkout's location, which is why it is named and never
 addressed — key material or fragments. `test/install.test.js` runs
 both leak screens on every `npm test`; a violation fails the suite rather than the release.
+
+## 2026-11-22 — brew inventory: mislabelled formula twins are voided, not installed
+
+**Slice.** Found while starting `M1` (plan §6 row 231: "`iterm2` cask under install/uninstall ledger").
+M1 cannot ship a working `iterm2` cask row while the same name is also planned as a formula.
+
+**Defect (measured, not inferred).** `shared-core/brew/formulae.csv` is a dump of one machine's
+`brew list` and carries 367 rows across 273 distinct names: 188 rows share a name with another row.
+For `iterm2`, `claude` and every `font-*` row the two rows carry the *same version* and differ only
+in `type`, and Homebrew provides no formula by those names — probed unproxied on 2026-11-22:
+
+```
+iterm2   formula_exit=1 cask_exit=0     (Error: No available formula with the name "iterm2".
+                                         Found a cask named "iterm2" instead.)
+claude   formula_exit=1 cask_exit=0
+font-caskaydia-cove-nerd-font  formula_exit=1 cask_exit=0
+docker   formula_exit=0 cask_exit=0     (a genuine dual: versions differ, both rows kept)
+```
+
+A formula row that Homebrew can never satisfy is unsatisfiable forever, so it was counted missing on
+every machine and `--install-prereqs` spent a doomed `brew install <name>` on each one. Before the
+fix, real-machine plan reported installed iTerm2/Claude/fonts as missing; after it, the same command
+fix, real-machine plan reported installed iTerm2/Claude/fonts as missing. After it the same machine
+reports `considered 367 / present 271 / missing 2 / deferred 1 / voided 93` (scope=all) and
+`considered 28 / voided 0` (scope=required), with `font_rows_missing 0`.
+
+**Decision.** In `lib/brew.js plan()`, a `formula` row whose name+version also appears as a `cask`
+row is one artefact listed twice: when its cask twin is installed the row adds nothing (the cask row
+accounts for it), and when the twin is absent the row is **deferred** with the reason
+`brew provides no formula by this name — the same-version cask row covers it`. It is never an install
+target. Rows whose versions differ are left completely alone, so a name Homebrew genuinely provides
+both ways keeps both behaviours.
+
+Voided rows are **counted, not dropped**: `plan()` returns `voided`/`voidedCount` and folds them into
+`considered`, preserving the invariant `considered == rows in scope` that
+`brew --scope=required considers every non-optional row` asserts. The first version of this fix
+`continue`d silently and broke that invariant — required scope reported 122 considered against 28 rows
+in scope, because the twin test also ran ahead of the scope filter. Both invariants are now machine
+checked, and the twin handling sits after `wantOnly` so scope counts stay honest.
+
+**Rejected alternative.** A blanket "when a name is both formula and cask, prefer the cask" rule was
+refused: for names Homebrew really does provide both ways (`docker`, and the `oracle`/`vmware` family
+the installer already holds back for entitlements), cask-precedence would silently turn a CLI formula
+install into a GUI bundle install. Kind must come from what brew provides, not from a table preference.
+
+**Visibility.** `install.js` phase 5 now prints each held-back row with its reason in both branches
+(plan and `--install-brew`), because a row this package will never install is the kind of row an
+operator has to see; previously `deferred` existed only in the report JSON and `--install-brew` printed
+no reason at all. `asbmods brew --install-brew` output is the assertion target in test section `17b`.
+
+**Not done here.** The inventory data itself is left as detected — repairing the vendored dump means
+regenerating it from a real `brew list`, which is a data slice, not this code fix. Until then the twin
+rows are inert and counted once.

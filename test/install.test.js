@@ -775,6 +775,56 @@ section('17 source map and dependency map agree with the packaging contract');
   });
 }
 
+// ── 17b. The inventory mislabels some casks as formulae (iterm2, claude, every font-*). A formula
+// row brew cannot satisfy is unsatisfiable forever, so it must never become an install attempt.
+section('17b brew mislabelled formula twins are deferred, never installed as formulae');
+{
+  const { parseFormulae } = require(path.join(PKG, 'lib/detect.js'));
+  const rows = parseFormulae(path.join(PKG, 'shared-core/brew/formulae.csv'));
+  const caskKeys = new Set(rows.filter((r) => r.type === 'cask').map((r) => `${r.name}|${r.version}`));
+  const twins = rows.filter((r) => r.type === 'formula' && caskKeys.has(`${r.name}|${r.version}`));
+  const twinNames = new Set(twins.map((t) => t.name));
+
+  test(`brew: the shipped inventory carries ${twins.length} same-version formula/cask twins`, () => {
+    assert.ok(twins.length > 10, `expected mislabelled twins (found ${twins.length}) — premise wrong`);
+    // iterm2 is the named case in plan §6 M1: brew reports no formula by that name at all.
+    assert.ok(twinNames.has('iterm2'), 'iterm2 twin expected: brew info --formula iterm2 exits 1');
+    assert.ok(twinNames.has('claude'), 'claude twin expected: the Claude Code cask row is core-scoped');
+  });
+
+  const fx = fs.mkdtempSync(path.join(os.tmpdir(), 'asbmods-twin-'));
+  const bin = path.join(fx, 'bin');
+  const argvLog = path.join(fx, 'argv.log');
+  fs.mkdirSync(bin, { recursive: true });
+  fs.writeFileSync(path.join(bin, 'brew'), [
+    '#!/bin/sh',
+    'if [ "$1" = "--version" ]; then echo "brew 9.9.9-fake"; exit 0; fi',
+    'if [ "$1" = "list" ]; then exit 0; fi', // nothing installed: every row is missing
+    `printf '%s\\n' "$*" >> ${JSON.stringify(argvLog)}`,
+    'exit 0',
+  ].join('\n'));
+  fs.chmodSync(path.join(bin, 'brew'), 0o755);
+  const env = {
+    ...process.env,
+    ASB_MODS_HOME: path.join(fx, 'home'),
+    XDG_CONFIG_HOME: path.join(fx, 'xdg'),
+    PATH: `${bin}:/usr/bin:/bin`,
+  };
+  const r = cp.spawnSync(process.execPath, [path.join(PKG, 'install.js'), 'brew', '--yes', '--install-brew'],
+    { env, encoding: 'utf8', timeout: 300000 });
+  const argv = fs.existsSync(argvLog) ? fs.readFileSync(argvLog, 'utf8').trim().split('\n').filter(Boolean) : [];
+
+  test('brew: no twin name is installed without --cask, and its cask row still is', () => {
+    assert.strictEqual(r.status, 0, `brew phase failed: ${(r.stdout || '').slice(-400)}`);
+    const doomed = argv.filter((a) => /^install /.test(a) && !/^install --cask /.test(a) && twinNames.has(a.split(' ')[1]));
+    assert.deepStrictEqual(doomed, [], 'formula-less names reached brew install without --cask');
+    assert.ok(argv.includes('install --cask iterm2'), 'the iterm2 CASK row must still be installed as a cask');
+    assert.ok(/brew provides no formula by this name/.test(r.stdout), 'the deferred reason must be printed, not silent');
+  });
+
+  fs.rmSync(fx, { recursive: true, force: true });
+}
+
 // ── 18. phase 4 really installs casks AS casks (a fake brew records every argv)
 section('18 brew phase installs formulae and casks with the right subcommand');
 {
