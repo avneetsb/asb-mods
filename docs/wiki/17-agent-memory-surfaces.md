@@ -70,8 +70,12 @@ how a previous plan got it wrong.
 
 The design rule is one writer per store. Two agents appending to one file do not merge and do not lock:
 they interleave partial writes and the last flush wins, so a host can quietly lose another host's
-recollection. This repository has no cross-process lock today (limitation 37), so the sentence above is a
-design rule, not a guarantee — the guarantee is what slice P8's `lib/state-lock.js` will add. The
+recollection. Since 0.3.2 the installer serialises **its own** runs: `lib/state-lock.js` takes an
+exclusive-create lock at `<state-dir>/install.lock` carrying pid + verb + started-at, judges staleness by
+pid liveness rather than by age, and exempts read-only verbs and `--dry-run` completely — so two asb-mods
+runs can no longer interleave, and the one that loses exits 1 naming the holder and printing the takeover
+command. That closes finding F8 for this package, and nothing more: the rule above is still not a guarantee
+against the agents themselves, which write into these stores through their own tools without asking us. The
 caliper-harness study (`.harness/findings.json` F8) showed the version that does hold: one long-running
 loopback HTTP server owns the store and answers every host over `127.0.0.1`, with direct file writes
 reserved for migration and repair under a held lock.
@@ -81,7 +85,8 @@ installs the memory components (engram, Mnemosyne) once into the npm prefix all 
 `shared-core/mcp/servers.json` — specified in plan §2, not shipped at 0.3.0 — will point one server
 definition at all of them. A recollection saved through one host's tools is then readable from another's,
 while each runtime's own note format stays private. This package installs and registers those components;
-it does not implement their storage, and the lock that would make concurrent writes safe is limitation 37.
+it does not implement their storage, and the run lock covers **our** writes only: two agents writing the
+same store through their own tools is still limitation 37's open half, which §2's single-writer server answers.
 
 ## What asb-mods does and does not do
 

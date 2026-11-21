@@ -32,6 +32,7 @@ const prereqs = require('./lib/prereqs');
 const payload = require('./lib/payload');
 const agentsmod = require('./lib/agents');
 const ledger = require('./lib/ledger');
+const lock = require('./lib/state-lock');
 
 const COLOR = process.stdout.isTTY && !process.env.NO_COLOR;
 const C = COLOR
@@ -85,6 +86,9 @@ Flags
   --include-agent-clis   uninstall: let it consider the agent CLIs we installed (held back otherwise)
   --include-held-back    uninstall: let it consider runtime prerequisites (node, npm, git, Homebrew)
   --rebuild-from-reports uninstall: rebuild the ledger from reports written before 0.3.1
+  --force-unlock         Mutating run only: take the lock over from a live holder. The takeover is
+                         reported on stderr. Read-only verbs and --dry-run never take the lock, so a
+                         running install cannot lock out status, doctor or a plan.
   Node missing?        ./bootstrap.sh installs a Node toolchain (or --via=nvm, --via=none);
                        it changes nothing else. Everything else: asbmods doctor.
 
@@ -137,6 +141,7 @@ function parseArgv(argv) {
     else if (a === '--include-agent-clis') out.flags.includeAgentClis = true;
     else if (a === '--include-held-back') out.flags.includeHeldBack = true;
     else if (a === '--rebuild-from-reports') out.flags.rebuildLedger = true;
+    else if (a === '--force-unlock') out.flags.forceUnlock = true;
     else if (!a.startsWith('-')) out.command = a;
     else out.flags.unknown.push(a);
   }
@@ -235,6 +240,32 @@ function writeState(patch) {
   return state;
 }
 
+// One cross-process lock per mutating run (slice `P8`, §5 limitation 32, finding F8). Two agent sessions,
+// or a human plus an automation run, used to interleave archive/remove/install against one state directory
+// and leave the ledger last-writer-wins.
+//
+// Read-only verbs and `--dry-run` never take the lock, so a running install cannot lock out the very
+// command you would use to find out what it is doing. A refusal names the holder (pid, verb, since when)
+// and prints the exact takeover command — limitation 32's accepted escape, because a bare "locked" tells a
+// human nothing they can act on while a crashed run keeps every later run out.
+function takeLockOrRefuse(verb, flags) {
+  const h = lock.acquire({ dir: P.STATE_DIR, verb, dryRun: !!flags.dryRun, force: !!flags.forceUnlock });
+  if (h.dryRun) return null;
+  if (!h.acquired) {
+    if (h.error) { log('err', h.error); process.exit(1); }
+    const pid = h.held && h.held.pid ? h.held.pid : 0;
+    log('err', `another asb-mods run holds the lock ${h.lockPath} — ${lock.describe(h.held)}`);
+    log('err', `still running? kill -0 ${pid} 2>/dev/null && echo alive — if it is hung or its pid is gone, take over with: ${lock.takeoverCommand(verb)}`);
+    process.exit(1);
+  }
+  if (h.tookStale) {
+    const how = h.tookStale.forced ? 'takeover forced with --force-unlock' : 'its pid is gone, so that run crashed or was killed';
+    log('warn', `took over the lock from ${lock.describe(h.tookStale)} — ${how}`);
+  }
+  process.on('exit', () => { try { h.release(); } catch { /* ending anyway: a leftover lock is judged by pid liveness */ } });
+  return h;
+}
+
 async function main() {
   const { command, flags } = parseArgv(process.argv.slice(2));
   if (command === 'help' || flags.help) { console.log(HELP); return; }
@@ -298,6 +329,9 @@ async function main() {
       if (!p.total) log('info', 'nothing recorded yet; installs made before 0.3.1 can be recovered with --rebuild-from-reports');
       return;
     }
+    // Removal is the destructive half of uninstall, so it holds the lock; the planning branch above does
+    // not, because reading the ledger beside a running install is exactly what an operator needs to do.
+    takeLockOrRefuse('uninstall', flags);
     const res = ledger.remove(opts, log);
     for (const n of res.unknownNames) log('warn', `--name=${n} is not in the install ledger`);
     log(res.failed.length ? 'warn' : 'ok', `${res.removed.length} removed, ${res.failed.length} failed — report ${res.reportPath}`);
@@ -333,6 +367,9 @@ async function main() {
   if (command === 'detect') { runDetect(); return; }
   if (command === 'status') { return status(flags); }
   if (command === 'reset') {
+    // Reset writes into agent dirs from the archive, so it is a mutating run even though it returns
+    // before the phase pipeline; --dry-run inside restore is exempted by the flag check in the helper.
+    takeLockOrRefuse('reset', flags);
     banner('Reset — restore from latest archive');
     const scoped = restore.restoreRemoved(flags, log);
     if (scoped.dryRun) {
@@ -344,6 +381,9 @@ async function main() {
   }
 
   preflight();
+
+  // Everything below writes: archive stamps, removals, phase deploys, ledger entries. One holder at a time.
+  takeLockOrRefuse(command, flags);
 
   // ---- prerequisites / agent CLIs (opt-in, before detection so a newly installed tool is seen)
   if (flags.installPrereqs || flags.installAgents) {

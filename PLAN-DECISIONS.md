@@ -170,6 +170,45 @@ replacement row now says which number is machine-checked and which is not: packe
 in the new check registers the payload ones among them, so each slice inherits the packaging guarantee the
 moment it lands a file rather than having to remember to ask for one.
 
+## D10 — `P8` cross-process lock: pid liveness, not age, and a lock that cannot lock out a diagnostic (2026-11-22)
+
+**Decision.** `lib/state-lock.js` (the filename wiki 17 had already promised) takes an exclusive-create
+lock at `<state-dir>/install.lock` holding `{pid, verb, startedAt, host}`. `install.js` calls
+`takeLockOrRefuse(command, flags)` at the three places that write — before the phase pipeline, inside
+`reset`, and immediately before `uninstall`'s removal.
+**Rejected, each with the failure it avoids.** (a) *Age-based expiry*: reopens the interleaving window on
+any legitimately long install — a 367-row brew plan outlives every fixed timeout worth picking.
+(b) *Locking read-only verbs*: that turns limitation 32's accepted failure mode into an outage, because you
+could not run `status` or `doctor` beside the very run that is blocking you. (c) *`flock`-style advisory
+locks*: the holder's fd dies with the process, so there is nothing to show a human — no pid, no verb, no
+start time — which is precisely the refusal row 32 asks for. (d) *Auto-steal after N minutes*: same defect
+as (a) plus it deletes evidence.
+**Measured before writing assertions** (fixture homes, real subprocesses): against a live holder
+`uninstall --yes` exits **1** naming `pid`, `running "install"`, `since …`, `host fixture-host`, and prints
+both `kill -0 <pid> 2>/dev/null && echo alive` and `asbmods uninstall --force-unlock`; the holder's record
+is untouched and no `reports/` directory is created. `--force-unlock` exits 0 reporting `takeover forced
+with --force-unlock`. A lock whose pid is gone exits 0 reporting `its pid is gone, so that run crashed or
+was killed`. `--dry-run` beside a live holder exits 0 and is never refused.
+**One test-harness fact worth keeping.** A "stale" fixture pid cannot come from `cp.spawn` in the test
+process: until the event loop reaps it, the child is a zombie and a zombie still answers `kill(pid, 0)` —
+so it reads as a *live* holder. The dead pid therefore comes from
+`/bin/sh -c 'sleep 0.2 & p=$!; wait $p; echo $p'`, where the parent reaps it before exiting. A fixture that
+had used a zombie would have asserted the opposite of what the code does.
+**Claims, with their evidence.** `npm test` → **112 passed / 0 failed** (was 108). The four new tests assert
+the primitive layer too: `'wx'` create, `holderAlive` on nonsense inputs (`0`, `-1`, `null`, `'nope'`,
+`1.5`), a `release()` that refuses to delete a lock it does not own, and that an ancient timestamp with a
+live pid is still a refusal while a fresh timestamp with a dead pid is a reported takeover. The new
+pack-coverage gate from D9 caught its first drift on this slice: `lib/state-lock.js` made the artifact 241
+files and wiki 15's row said 240 — the gate failed `npm test` rather than letting the doc lie.
+**Rail honoured, and a correction made durable.** §10.5 requires `O1` before `P8`, because a prompt that can
+hang while holding a lock is worse than no lock; `O1` landed first (`46a6e45`, EOF resolves as a refusal),
+and the lock is acquired only after every prompt-capable decision point that precedes a write. Worth
+recording because a session note in this very slice asserted that a lock and its test already existed: the
+repository had **neither** (`grep "process\.kill("` → no matches outside the new file), and the docs were
+more accurate than the note — wiki 17 said "no cross-process lock today … `lib/state-lock.js` will add".
+Docs updated to present tense, and limitation 32 now disposes as *accepted with a defined escape* against
+test names rather than prose.
+
 ## Findings from the caliper-harness study, and where each stands
 
 The read-only caliper-harness study checkout — its location is deliberately not recorded here, since a personal absolute path is exactly what the leak screens below refuse; plan §6 holds the analysis. Status is

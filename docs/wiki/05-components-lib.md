@@ -210,6 +210,32 @@ otherwise removing Homebrew first would silently reclassify every brew row as al
 command the package could state honestly — the row says so and points at the vendor's own docs.
 The ledger stores managers and names, never absolute paths, so it survives another user, another
 Homebrew prefix or a moved Node.
+## `lib/state-lock.js` — one mutating run at a time
+
+| Symbol | Contract |
+| --- | --- |
+| `acquire({dir, verb, dryRun, force})` | Exclusive create (`fs.open(p, 'wx')`) of `<dir>/install.lock` holding `{pid, verb, startedAt, host}`. Returns `{acquired, tookStale, release}` — or `{acquired: false, held, alive}` when a **live** pid owns it |
+| `holderAlive(pid)` | `kill(pid, 0)`. `EPERM` counts as alive (the pid exists, someone else owns it); non-integer, `≤ 0` and fractional pids are never alive |
+| `release(lockPath, pid)` | Deletes only a record that still names *your* pid, so a lock another run already took over cannot be deleted by you |
+| `describe(holder)` / `takeoverCommand(verb)` | The refusal text and the exact takeover line, so the printed instruction and the flag that implements it cannot drift apart |
+
+Three decisions carry §5 row 32 and finding F8, and each is observable rather than promised:
+
+* **Staleness is pid liveness, never age.** A lock two days old whose process exists is a refusal; one written
+  a second ago whose pid is gone is a takeover. Age-based expiry would reopen the interleaving window every
+  time an install legitimately runs long — a 367-row brew plan outlives any fixed timeout you would pick.
+* **A takeover is always announced.** `tookStale` becomes a `[warn]` naming what it replaced and why, so the
+  escape hatch cannot quietly become the normal path.
+* **Read-only verbs and `--dry-run` never take the lock.** That is what makes the accepted failure mode — "a
+  crashed or hung run keeps later runs out" — survivable: `status`, `doctor`, `detect` and every plan still
+  run beside a live install, which is how you find out what it is doing.
+
+`install.js` calls `takeLockOrRefuse(command, flags)` at the three places that write: before the phase
+pipeline, inside `reset`, and immediately before `uninstall`'s removal (its planning branch stays
+lock-free). A refusal exits **1** having changed nothing — no archive stamp, no report file, holder record
+untouched. The module is a leaf: it needs only `fs`, `path` and `os`, so the lock can be taken on a machine
+where nothing else in the package works yet.
+
 ## Module dependency graph
 
 ```text
@@ -225,6 +251,7 @@ install.js
   ├── npmpkgs→ paths, fsx, ledger(record)
   ├── brew   → paths, fsx, detect(parseFormulae), ledger(record)
   ├── ledger → paths, fsx, child_process (brew/npm queries only; never touches shared-core)
+  ├── state-lock → (fs, path, os) — a leaf too: it has to be takable on a bare machine, before any phase module can load
   ├── prereqs→ (fs, path, child_process, ledger(record)) — a leaf by design *in effect*: doctor
   │           must work on a machine where nothing else in the package can run yet, and ledger
   │           needs only paths + fsx, so that promise still holds

@@ -1890,6 +1890,153 @@ test('§1 pre-flight refuses a package whose inventory lists a file the artifact
   assert.match(bout, /integrity cannot be checked/);
 });
 
+section('P8 — one mutating run at a time (limitation 32, finding F8)');
+
+// A dead-and-reaped pid, so "stale" means the same thing here that it means on a crashed run. A child
+// reaped by its own parent cannot be a zombie (a zombie still answers kill(pid, 0)), which is why the pid
+// comes from a shell that waits for its grandchild rather than from cp.spawn in this process.
+function deadPid() {
+  const r = cp.spawnSync('/bin/sh', ['-c', 'sleep 0.2 & p=$!; wait $p; echo $p'], { encoding: 'utf8' });
+  const pid = parseInt((r.stdout || '').trim(), 10);
+  assert.ok(Number.isInteger(pid) && pid > 0, `could not produce a dead pid: ${r.stdout}`);
+  cp.spawnSync('sleep', ['0.3']);
+  assert.throws(() => process.kill(pid, 0));
+  return pid;
+}
+
+test('P8 lock primitives: exclusive create, liveness-judged staleness, and a release that cannot steal', () => {
+  const lock = require(path.join(PKG, 'lib/state-lock.js'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'asbmods-lock-unit-'));
+
+  const a = lock.acquire({ dir, verb: 'install' });
+  assert.ok(a.acquired, 'first acquire failed');
+  const held = JSON.parse(fs.readFileSync(a.lockPath, 'utf8'));
+  assert.strictEqual(held.pid, process.pid, 'lock does not record our pid');
+  assert.strictEqual(held.verb, 'install', 'lock does not record the verb (limitation 32 wants pid + verb)');
+  assert.ok(held.startedAt, 'lock has no started-at timestamp');
+
+  // A second take must refuse, not truncate: 'wx' is the primitive finding F8 says was missing.
+  const b = lock.acquire({ dir, verb: 'brew' });
+  assert.ok(!b.acquired && b.alive, 'a live holder was displaced instead of refused');
+  assert.strictEqual(JSON.parse(fs.readFileSync(a.lockPath, 'utf8')).verb, 'install', 'the refusal overwrote the holder record');
+
+  assert.strictEqual(lock.holderAlive(process.pid), true, 'this process was reported dead');
+  assert.strictEqual(lock.holderAlive(deadPid()), false, 'a reaped pid was reported alive');
+  for (const junk of [0, -1, null, undefined, 'nope', 1.5]) {
+    assert.strictEqual(lock.holderAlive(junk), false, `holderAlive(${String(junk)}) should be false`);
+  }
+
+  // Releasing someone else's lock is the interleaving this file exists to stop, so it must be refused.
+  assert.strictEqual(lock.release(a.lockPath, process.pid + 99999), false, 'release removed a lock it did not own');
+  assert.ok(fs.existsSync(a.lockPath), 'a refused release still deleted the file');
+  assert.strictEqual(a.release(), true, 'our own release failed');
+  assert.ok(!fs.existsSync(a.lockPath), 'the lock file survived its release');
+
+  // Stale by pid liveness, never by age: an old timestamp with a live pid is still a refusal.
+  const live = JSON.stringify({ pid: process.pid, verb: 'old', startedAt: '2000-01-01T00:00:00.000Z' });
+  fs.writeFileSync(lock.lockPathIn(dir), live);
+  assert.ok(!lock.acquire({ dir, verb: 'install' }).acquired, 'a live holder with an ancient timestamp was taken over');
+  // …and a brand-new timestamp whose pid is gone is a takeover, reported as one.
+  fs.writeFileSync(lock.lockPathIn(dir), JSON.stringify({ pid: deadPid(), verb: 'old', startedAt: new Date().toISOString() }));
+  const took = lock.acquire({ dir, verb: 'install' });
+  assert.ok(took.acquired && took.tookStale, 'a fresh-but-dead holder was not taken over and reported');
+  assert.strictEqual(took.tookStale.verb, 'old', 'the takeover does not name what it replaced');
+  took.release();
+
+  // --force-unlock is the accepted escape (row 32), so it must work on a LIVE holder and say it did.
+  fs.writeFileSync(lock.lockPathIn(dir), JSON.stringify({ pid: process.pid, verb: 'stuck' }));
+  const forced = lock.acquire({ dir, verb: 'install', force: true });
+  assert.ok(forced.acquired && forced.tookStale && forced.tookStale.forced, '--force-unlock neither took over nor reported the force');
+  forced.release();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('P8 a live holder refuses a mutating run with its pid and the exact takeover command', () => {
+  const fx = fs.mkdtempSync(path.join(os.tmpdir(), 'asbmods-lock-live-'));
+  const state = path.join(fx, 'xdg', 'asb-mods');
+  fs.mkdirSync(state, { recursive: true });
+  const holder = cp.spawn('/bin/sleep', ['30'], { stdio: 'ignore' });
+  try {
+    const lockPath = path.join(state, 'install.lock');
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: holder.pid, verb: 'install', startedAt: '2026-11-22T00:00:00.000Z', host: 'fixture-host' }));
+    const r = cp.spawnSync(process.execPath, [path.join(PKG, 'install.js'), 'uninstall', '--yes'], {
+      cwd: PKG, encoding: 'utf8', input: '', timeout: 240000,
+      env: { ...process.env, ASB_MODS_HOME: path.join(fx, 'home'), XDG_CONFIG_HOME: path.join(fx, 'xdg'), NO_COLOR: '1' },
+    });
+    const out = `${r.stdout}${r.stderr}`;
+    assert.strictEqual(r.status, 1, `a run against a live holder did not refuse: ${out.slice(-300)}`);
+    assert.match(out, /holds the lock/);
+    assert.ok(out.includes(`pid ${holder.pid}`), `the refusal does not name the holder pid: ${out.slice(0, 300)}`);
+    assert.ok(out.includes('asbmods uninstall --force-unlock'), `the refusal omits the takeover command: ${out.slice(0, 300)}`);
+    assert.match(out, /kill -0 \d+/, 'the refusal does not print the liveness check');
+    // Two clauses of the acceptance criterion that prose alone would not prove:
+    assert.strictEqual(JSON.parse(fs.readFileSync(lockPath, 'utf8')).pid, holder.pid, 'the refusing run displaced the live holder');
+    assert.ok(!fs.existsSync(path.join(state, 'reports')), 'the refused run wrote an uninstall report anyway');
+  } finally {
+    holder.kill();
+    fs.rmSync(fx, { recursive: true, force: true });
+  }
+});
+
+test('P8 a stale holder is taken over and reported; --force-unlock does the same for a live one', () => {
+  const fx = fs.mkdtempSync(path.join(os.tmpdir(), 'asbmods-lock-stale-'));
+  const state = path.join(fx, 'xdg', 'asb-mods');
+  fs.mkdirSync(state, { recursive: true });
+  const env = { ...process.env, ASB_MODS_HOME: path.join(fx, 'home'), XDG_CONFIG_HOME: path.join(fx, 'xdg'), NO_COLOR: '1' };
+  const lockPath = path.join(state, 'install.lock');
+  const runUninstall = (args) => cp.spawnSync(process.execPath, [path.join(PKG, 'install.js'), 'uninstall', '--yes', ...args], {
+    cwd: PKG, encoding: 'utf8', input: '', timeout: 240000, env,
+  });
+
+  fs.writeFileSync(lockPath, JSON.stringify({ pid: deadPid(), verb: 'brew', startedAt: '2026-11-22T00:00:00.000Z' }));
+  const stale = runUninstall([]);
+  const sOut = `${stale.stdout}${stale.stderr}`;
+  assert.strictEqual(stale.status, 0, `a run against a stale holder refused instead of proceeding: ${sOut.slice(-300)}`);
+  assert.match(sOut, /took over the lock/);
+  assert.match(sOut, /pid is gone/, 'the takeover did not say why the holder was judged stale');
+  assert.ok(sOut.includes('brew'), 'the takeover does not name the verb it replaced');
+  assert.ok(!fs.existsSync(lockPath), 'the run left its own lock behind instead of releasing it');
+
+  const holder = cp.spawn('/bin/sleep', ['30'], { stdio: 'ignore' });
+  try {
+    fs.writeFileSync(lockPath, JSON.stringify({ pid: holder.pid, verb: 'all', startedAt: new Date().toISOString() }));
+    const forced = runUninstall(['--force-unlock']);
+    const fOut = `${forced.stdout}${forced.stderr}`;
+    assert.strictEqual(forced.status, 0, `--force-unlock did not proceed: ${fOut.slice(-300)}`);
+    assert.match(fOut, /took over the lock/);
+    assert.match(fOut, /--force-unlock/, 'the forced takeover was not reported as forced');
+  } finally {
+    holder.kill();
+    fs.rmSync(fx, { recursive: true, force: true });
+  }
+});
+
+test('P8 read-only verbs and --dry-run are never locked out by a running install', () => {
+  // Limitation 32's failure mode is a lock that keeps everything out. The diagnostics must stay usable,
+  // because they are how an operator finds out what the holder is doing.
+  const fx = fs.mkdtempSync(path.join(os.tmpdir(), 'asbmods-lock-readonly-'));
+  const state = path.join(fx, 'xdg', 'asb-mods');
+  fs.mkdirSync(state, { recursive: true });
+  const holder = cp.spawn('/bin/sleep', ['30'], { stdio: 'ignore' });
+  try {
+    fs.writeFileSync(path.join(state, 'install.lock'), JSON.stringify({ pid: holder.pid, verb: 'all', startedAt: new Date().toISOString() }));
+    const env = { ...process.env, ASB_MODS_HOME: path.join(fx, 'home'), XDG_CONFIG_HOME: path.join(fx, 'xdg'), NO_COLOR: '1' };
+    for (const args of [['--dry-run'], ['status'], ['detect'], ['uninstall']]) {
+      const r = cp.spawnSync(process.execPath, [path.join(PKG, 'install.js'), ...args], {
+        cwd: PKG, encoding: 'utf8', input: '', timeout: 240000, env,
+      });
+      const out = `${r.stdout}${r.stderr}`;
+      assert.ok(!/holds the lock/.test(out), `${args.join(' ')} was refused by a live holder: ${out.slice(0, 240)}`);
+      assert.ok(r.status === 0 || r.status === 1, `${args.join(' ')} exited ${r.status}`);
+      if (args[0] === '--dry-run' || args[0] === 'status') assert.strictEqual(r.status, 0, `${args.join(' ')}: ${out.slice(-300)}`);
+    }
+    assert.ok(fs.existsSync(path.join(state, 'install.lock')), 'a read-only run released a lock it never took');
+  } finally {
+    holder.kill();
+    fs.rmSync(fx, { recursive: true, force: true });
+  }
+});
+
 console.log(`\n${passed} passed, ${failures.length} failed`);
 if (failures.length) {
   console.log(`failed: ${failures.join(', ')}`);

@@ -59,6 +59,7 @@ node --version                        # must be >= 18 (engines field)
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | `status` warns about `secrets.env` | file missing (never prompted) or mode not 600 | `asbmods secrets`, then `chmod 600` if the mode is wrong |
+| A mutating run exits 1 with `another asb-mods run holds the lock` | another asb-mods run is writing right now — two terminals, or an automation overlapping a manual run ([page 17](17-agent-memory-surfaces.md#one-writer-per-store--why-nothing-here-is-merged)) | Do what the message prints: `kill -0 <pid>` to see if it is alive. Alive and working → wait for it. Hung → re-run with `--force-unlock`. Pid gone → nothing to do; the next run takes the lock over and reports it |
 | prompts appeared in CI | `--no-input` missing | add it; the phase then leaves unset values alone |
 | exports absent in a new shell | rc block not sourced yet, or you use a shell with no wired rc file | `exec zsh`; fish/csh are not wired — source `<state-dir>/env/shell-env.sh` yourself |
 | TLS/`unable to verify` errors in tools | `SSL_CERT_FILE` / `REQUESTS_CA_BUNDLE` not pointing at a bundle with this machine's roots | rebuild the bundle and re-run `asbmods env` ([page 09](09-secrets-and-env.md)) |
@@ -154,6 +155,11 @@ processes all three agents.
   did anything.
 - `doctor` and `status` reject mutating flags (`--install-*`, `--rotate-secrets`,
   `--allow-destructive`) with exit 2 instead of accepting and ignoring them.
+- A **hung** run (as opposed to a crashed one) keeps mutating runs out until you decide. The lock is judged
+  by pid liveness, and a wedged process is alive by definition. `--force-unlock` takes it over and reports
+  the takeover; a crash or `SIGKILL` needs nothing, because a dead pid is stale. This is §5 limitation 32
+  accepted with a defined escape rather than solved — the alternative, age-based expiry, would reopen the
+  interleaving window on any install that legitimately runs long.
 ## Not bugs — by design
 
 | Looks wrong | Is deliberate because |
