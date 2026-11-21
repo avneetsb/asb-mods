@@ -120,6 +120,30 @@ find ~/.config/asb-mods -name 'asb-*check.sh' -exec ls -l {} +
   third-party plugin installs, which are outside this package's scope (see the `claudePlugins` /
   `claudeHooks` denials on [page 07](07-personal-tooling-vendoring.md)).
 
+## What the pi adapter cannot do yet (measured, not assumed)
+
+The generated extension is real and works, but its mapping is coarser than Claude's or Codex's, and
+the difference is behavioural, not cosmetic:
+
+| Shared hook (`when`) | Claude / Codex | pi today | Consequence |
+| --- | --- | --- | --- |
+| `on_session_start` | fires at session start | `pi.on("session_start")` | equivalent |
+| `on_user_prompt` | fires on **every** prompt | collapsed into `turn_end`, and a `fired` Set lets each hook run **once per process** | the style reminder runs once per session, not once per prompt |
+| `post_tool_use` | fires after each tool call | same collapsed `turn_end`, once per process | a hook meant to act before the TUI renders (the terminal-label hook) runs after the session ends — i.e. never usefully |
+| `on_stop` | fires at stop | same collapsed `turn_end`, once per process | close enough to be honest, not equal |
+
+Two more limits. Failures are reported with `ctx.ui.notify` **only when `ctx.hasUI`**, so the same
+hook failing in a headless run prints nothing at all. And pi's own event set is richer than the
+adapter uses — `input`, `turn_start`, `tool_call`, `tool_result`, `agent_end`, `agent_start` all
+exist upstream — so this is a shortcut in `piExtensionSource()`, not a ceiling pi imposes.
+
+Planned correction (0.3.2): map `on_user_prompt → input`, `post_tool_use → tool_result`,
+`on_stop → agent_end`, keep `on_session_start → session_start`; drop the unconditional once-per-process
+gate in favour of an explicit `once: true` on hooks that mean it; and print hook failures to
+`stderr` when there is no UI, because a silent hook is indistinguishable from an absent one. Until
+that lands, treat pi as receiving **session-start semantics** for every hook, and do not rely on a pi
+hook to guard something before it happens.
+
 ## Failure modes
 
 | Symptom | Cause | Fix |
