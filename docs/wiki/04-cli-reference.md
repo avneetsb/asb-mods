@@ -65,6 +65,35 @@ Unrecognised flags, unknown command words and invalid `--scope` values are rejec
 the offending token named, so a typo cannot masquerade as an instruction that was never given. The
 summary block at the end of a run is still what tells you what actually happened.
 
+### What `uninstall` refuses to remove
+
+`uninstall` plans by default and removes nothing without `--yes`. Every recorded install lands in one
+of three buckets — removable, held back, already gone — and each held-back row prints its reason
+verbatim. The ladder, in the order it is applied:
+
+| Held back because | Can you unlock it? |
+| --- | --- |
+| Installed by a vendor installer script, so no removal command we can trust | no flag: remove it the way that tool documents |
+| It is an agent CLI we installed (pi / Claude Code / Codex) | `--include-agent-clis` |
+| It is a runtime prerequisite (node, npm, git, Homebrew) | `--include-held-back` |
+| **Other installed software depends on it** (Homebrew formulas) | no flag, by design: remove the dependents first |
+| Homebrew could not answer the question (not on PATH, or the name is no longer known) | fix Homebrew, or remove that one package by hand |
+
+The dependents row is the one with no override, and it is checked against Homebrew itself rather than
+a table we maintain. Measured on this machine: `brew uses --installed <name>` exits 0 and lists
+dependents **transitively** (`openssl@3` reports `marksman`, which only reaches it through another
+formula), an empty list really does mean nothing installed depends on it, and a name Homebrew does not
+know *also* exits 0 with empty output — the `No available formula with the name "…"` warning on stderr
+is what separates those two cases, so an unknown name is held back instead of being read as safe.
+
+That query costs ~0.74 s per formula here, so one plan asks at most 60 of them (`DEPENDENCY_CHECK_CAP`
+in `lib/ledger.js`, overridable in code via `dependencyCheckCap`). A formula the cap skipped is held
+back with `Homebrew dependents not checked this run` rather than offered for removal, because "we did
+not ask" is not the same answer as "nothing depends on it" and only one of them is safe to uninstall
+against. Re-running with `--name=<pkg>` asks about that package alone, which is also how you check one
+after a bulk plan. Casks are excluded from the question: a cask is not a dependency of anything, so
+asking would only cost time.
+
 ## Environment variables
 
 | Variable | Effect |

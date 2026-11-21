@@ -1501,12 +1501,13 @@ section('install ledger — what the installer put on the machine, and how to ta
   const fxdg = path.join(fx, 'xdg');
   const markers = path.join(fx, 'markers');
   const mbin = path.join(fx, 'mbin');
-  for (const d of [fh, fxdg, markers, mbin]) fs.mkdirSync(d, { recursive: true });
-  const SHIM_BREW = 'IyEvYmluL2Jhc2gKbWsoKSB7IGVjaG8gIk1BUksvJChlY2hvICIkMSIgfCB0ciAnLycgJ18nKSI7IH0KY2FzZSAiJDEiIGluCiAgLS12ZXJzaW9uKSBlY2hvICJIb21lYnJldyA0LjkuMCI7IGV4aXQgMDs7CiAgbGlzdCkgbmFtZT0iJHtAOiAtMX0iOyBmPSQobWsgIiRuYW1lIik7IFsgLWYgIiRmIiBdICYmIHsgZWNobyAiJG5hbWUgMS4yLjMiOyBleGl0IDA7IH07IGV4aXQgMTs7CiAgdW5pbnN0YWxsKSBzaGlmdDsgWyAiJDEiID0gIi0tY2FzayIgXSAmJiBzaGlmdDsgcm0gLWYgIiQobWsgIiQxIikiOyBleGl0IDA7Owplc2FjCmV4aXQgMAo=';
+  const deps = path.join(fx, 'deps'); // per-formula dependent lists the brew shim answers with
+  for (const d of [fh, fxdg, markers, mbin, deps]) fs.mkdirSync(d, { recursive: true });
+  const SHIM_BREW = 'IyEvYmluL2Jhc2gKbWsoKSB7IGVjaG8gIk1BUksvJChlY2hvICIkMSIgfCB0ciAnLycgJ18nKSI7IH0KY2FzZSAiJDEiIGluCiAgLS12ZXJzaW9uKSBlY2hvICJIb21lYnJldyA0LjkuMCI7IGV4aXQgMDs7CiAgbGlzdCkgbmFtZT0iJHtAOiAtMX0iOyBmPSQobWsgIiRuYW1lIik7IFsgLWYgIiRmIiBdICYmIHsgZWNobyAiJG5hbWUgMS4yLjMiOyBleGl0IDA7IH07IGV4aXQgMTs7CiAgdXNlcykgc2hpZnQ7IFsgIiQxIiA9ICItLWluc3RhbGxlZCIgXSAmJiBzaGlmdDsgbj0iJDEiOwogICAgIyBSZWFsIEhvbWVicmV3IGFuc3dlcnMgZm9yIG5hbWVzIGl0IGRvZXMgbm90IGtub3cgdG9vLCBhbmQgdGhlIHNoYXBlIG1hdHRlcnM6IGV4aXQgMCwgZW1wdHkKICAgICMgc3Rkb3V0LCBwbHVzIGEgd2FybmluZyBvbiBzdGRlcnIuICJub3RoaW5nIGRlcGVuZHMgb24gaXQiIGFuZCAibm8gc3VjaCBmb3JtdWxhIiBib3RoIGxvb2sKICAgICMgZW1wdHkgb24gc3Rkb3V0LCBzbyB0aGUgc2hpbSByZXByb2R1Y2VzIHRoZSB3YXJuaW5nIHJhdGhlciB0aGFuIGEgZGlmZmVyZW50IGV4aXQgY29kZS4KICAgIGlmIFsgISAtZiAiJChtayAiJG4iKSIgXTsgdGhlbiBlY2hvICJXYXJuaW5nOiBObyBhdmFpbGFibGUgZm9ybXVsYSB3aXRoIHRoZSBuYW1lIFwiJG5cIi4iID4mMjsgZXhpdCAwOyBmaQogICAgZD0iREVQRElSLyRuIjsgWyAtZiAiJGQiIF0gfHwgZXhpdCAwCiAgICB3aGlsZSBJRlM9IHJlYWQgLXIgZGVwOyBkbyBbIC1uICIkZGVwIiBdICYmIFsgLWYgIiQobWsgIiRkZXAiKSIgXSAmJiBlY2hvICIkZGVwIjsgZG9uZSA8ICIkZCI7IGV4aXQgMDs7CiAgdW5pbnN0YWxsKSBzaGlmdDsgWyAiJDEiID0gIi0tY2FzayIgXSAmJiBzaGlmdDsgcm0gLWYgIiQobWsgIiQxIikiOyBleGl0IDA7Owplc2FjCmV4aXQgMAo=';
   const SHIM_NPM = 'IyEvYmluL2Jhc2gKY2FzZSAiJDEiIGluCiAgbHMpIHByaW50ZiAneyJkZXBlbmRlbmNpZXMiOnsnOyBmaXJzdD0xOyBmb3IgZiBpbiBNQVJLLyo7IGRvIFsgLWUgIiRmIiBdIHx8IGNvbnRpbnVlOyBuPSQoYmFzZW5hbWUgIiRmIiB8IHRyICdfJyAnLycpOyBbICRmaXJzdCAtZXEgMCBdICYmIHByaW50ZiAiLCI7IHByaW50ZiAnIiVzIjp7InZlcnNpb24iOiIxLjAuMCJ9JyAiJG4iOyBmaXJzdD0wOyBkb25lOyBwcmludGYgJ319XG4nOyBleGl0IDA7OwogIHVuaW5zdGFsbCkgcm0gLWYgIk1BUksvJChlY2hvICIkMyIgfCB0ciAnLycgJ18nKSI7IGV4aXQgMDs7CmVzYWMKZXhpdCAwCg==';
   for (const [name, b64] of [['brew', SHIM_BREW], ['npm', SHIM_NPM]]) {
     const p = path.join(mbin, name);
-    fs.writeFileSync(p, Buffer.from(b64, 'base64').toString('utf8').split('MARK').join(markers), { mode: 0o755 });
+    fs.writeFileSync(p, Buffer.from(b64, 'base64').toString('utf8').split('MARK').join(markers).split('DEPDIR').join(deps), { mode: 0o755 });
     fs.chmodSync(p, 0o755);
   }
   const marker = (n) => path.join(markers, n.split('/').join('_'));
@@ -1574,6 +1575,97 @@ section('install ledger — what the installer put on the machine, and how to ta
     assert.ok(r.out.includes('--name=ghost is not in the install ledger'), r.out.slice(-300));
   });
 
+
+  test('a formula other installed software depends on is never uninstalled', () => {
+    // The dependent is a fixture package too: the shim answers with the dependents whose marker
+    // exists, so what drives the plan is "is that thing installed", exactly like `brew uses
+    // --installed` does. Nothing here consults a list we maintain ourselves.
+    fs.writeFileSync(path.join(deps, 'widget'), 'sprocket\n');
+    fs.writeFileSync(marker('sprocket'), 'x');
+
+    const p = runLedger(['uninstall', '--name=widget', '--json']);
+    assert.strictEqual(p.status, 0, p.out.slice(-300));
+    const j = JSON.parse(p.out.slice(p.out.indexOf('{')));
+    assert.ok(!j.removable.some((e) => e.name === 'widget'), 'a formula with dependents was offered for removal');
+    const held = j.heldBack.find((e) => e.name === 'widget');
+    assert.ok(held, `widget was not held back at all: ${JSON.stringify(j.heldBack)}`);
+    assert.match(held.heldBackReason, /1 installed package\(s\) depend on it: sprocket/);
+    assert.deepStrictEqual(held.brewDependents, ['sprocket'], 'the plan did not carry the dependents it acted on');
+
+    // Consent changes nothing: no removal command is issued for a held-back formula, so the package
+    // and its dependent both survive a run that was told to remove it.
+    const r = runLedger(['uninstall', '--name=widget', '--yes']);
+    assert.match(r.out, /0 removed, 0 failed/, r.out.slice(-300));
+    assert.ok(fs.existsSync(marker('widget')), '--yes talked its way past the dependents gate');
+    assert.ok(fs.existsSync(marker('sprocket')), 'the dependent was taken as well');
+
+    // The gate is a live question, not a blocklist: once the dependent is gone the formula is fair
+    // game again, which is what proves the answer came from Homebrew and not from a name table.
+    fs.rmSync(marker('sprocket'));
+    const again = runLedger(['uninstall', '--name=widget']);
+    assert.ok(again.out.includes('would remove  brew:widget'), again.out.slice(-300));
+    fs.rmSync(path.join(deps, 'widget'));
+  });
+
+  test('the dependents gate fails closed: unknown, unanswered and unchecked never clear a formula', () => {
+    // Its own ledger, so the three-way answer shapes cannot disturb the shared fixture's counts.
+    const fx3 = fs.mkdtempSync(path.join(os.tmpdir(), 'asbmods-deps-'));
+    fs.mkdirSync(path.join(fx3, 'xdg'), { recursive: true });
+    const env3 = Object.assign({}, lenv, { ASB_MODS_HOME: fx3, XDG_CONFIG_HOME: path.join(fx3, 'xdg') });
+    const extra = ['alpha', 'beta', 'gamma', 'delta'];
+    for (const n of extra) fs.writeFileSync(marker(n), 'x');
+    const seed3 = 'const L=require(' + JSON.stringify(path.join(PKG, 'lib/ledger.js')) + ');'
+      + "L.record(['alpha','beta','gamma','delta'].map((n,i)=>({manager:'brew',name:n,"
+      + "kind:i===3?'cask':'formula',source:'test'})));";
+    const s3 = cp.spawnSync(process.execPath, ['-e', seed3], { cwd: PKG, encoding: 'utf8', env: env3, timeout: 120000 });
+    assert.strictEqual(s3.status, 0, (s3.stdout + s3.stderr).slice(-300));
+
+    const probe = [
+      'const L=require(' + JSON.stringify(path.join(PKG, 'lib/ledger.js')) + ');',
+      'const R=(o)=>()=>Object.assign({ok:true,unknown:false,dependents:[],error:null},o);',
+      'const names=(a)=>a.map((e)=>e.name).sort();',
+      'const res={};',
+      'res.clear=names(L.plan({dependentsOf:R({})}).removable);',
+      'res.many=L.plan({dependentsOf:R({dependents:["a","b","c","d","e","f"]})}).heldBack.map((e)=>e.heldBackReason);',
+      'const u=L.plan({dependentsOf:R({unknown:true})}).heldBack;',
+      'res.unknown=names(u); res.unknownReason=(u[0]||{}).heldBackReason||"";',
+      'const b=L.plan({dependentsOf:R({ok:false,error:"brew is not on PATH"})}).heldBack;',
+      'res.unanswered=names(b); res.unansweredReason=(b[0]||{}).heldBackReason||"";',
+      'const asked=[];',
+      'const capped=L.plan({dependencyCheckCap:2,dependentsOf:(n)=>{asked.push(n);return {ok:true,unknown:false,dependents:[],error:null};}});',
+      'res.asked=asked.slice().sort();',
+      'res.skipped=names(capped.heldBack.filter((e)=>/not checked this run/.test(e.heldBackReason||"")));',
+      'res.cleared=names(capped.removable);',
+      'console.log(JSON.stringify(res));',
+    ].join('');
+    const q = cp.spawnSync(process.execPath, ['-e', probe], { cwd: PKG, encoding: 'utf8', env: env3, timeout: 120000 });
+    assert.strictEqual(q.status, 0, (q.stdout + q.stderr).slice(-400));
+    const res = JSON.parse(q.stdout.slice(q.stdout.indexOf('{')));
+
+    assert.deepStrictEqual(res.clear, ['alpha', 'beta', 'delta', 'gamma'],
+      'nothing depends on them, so the gate must not hold anything back');
+    // Three formulae are asked, so three are held. The cask is never asked (asserted below), which is
+    // why it is absent here rather than held by a question it cannot answer.
+    assert.strictEqual(res.many.length, 3, `every formula should be held by its dependents: ${JSON.stringify(res.many)}`);
+    assert.ok(res.many.every((s) => /6 installed package\(s\) depend on it: a, b, c, d and 2 more/.test(s)),
+      `the reason should name what would break and how many: ${JSON.stringify(res.many)}`);
+    assert.deepStrictEqual(res.unknown, ['alpha', 'beta', 'gamma'],
+      'a name Homebrew does not know must be held back, never read as "nothing depends on it"');
+    assert.match(res.unknownReason, /no longer knows the name/);
+    assert.deepStrictEqual(res.unanswered, ['alpha', 'beta', 'gamma'],
+      'a failed query must hold the package back instead of clearing it');
+    assert.match(res.unansweredReason, /stays installed rather than go unverified/);
+
+    // The cap is the expensive-question guard: 2 asked, the third stated as unchecked rather than
+    // quietly offered, and a cask never asked at all because nothing depends on a cask.
+    assert.strictEqual(res.asked.length, 2, `the query cap was ignored: ${JSON.stringify(res.asked)}`);
+    assert.ok(!res.asked.includes('delta'), 'a cask was asked about dependents');
+    assert.ok(!res.asked.includes('gamma'), `gamma should be the skipped one: ${JSON.stringify(res.asked)}`);
+    assert.deepStrictEqual(res.skipped, ['gamma']);
+    assert.ok(!res.cleared.includes('gamma'), 'an unchecked formula was offered for removal');
+    assert.ok(res.cleared.includes('delta'), 'the cask was held back for a question it is never asked');
+    for (const n of extra) fs.rmSync(marker(n), { force: true });
+  });
   test('removal needs --yes, and an unattended run cannot give that consent', () => {
     const r = runLedger(['uninstall', '--yes', '--no-input']);
     assert.strictEqual(r.status, 2, r.out.slice(-300));
@@ -1595,13 +1687,16 @@ section('install ledger — what the installer put on the machine, and how to ta
   });
 
   test('uninstall --yes removes only recorded installs and verifies each one', () => {
+    // Counted as a delta, because an earlier test in this section legitimately removed something
+    // too and wrote its own report; what matters is that this run added exactly one.
+    const reportsBefore = reportFiles('uninstall-').length;
     const r = runLedger(['uninstall', '--yes']);
     assert.strictEqual(r.status, 0, r.out.slice(-400));
     assert.match(r.out, /3 removed, 0 failed/);
     for (const n of ['widget', 'gizmo', '@scope/tool']) assert.ok(!fs.existsSync(marker(n)), `${n} was not actually removed`);
     assert.ok(fs.existsSync(marker('node')), 'a held-back runtime prerequisite was removed');
     assert.strictEqual(readLedger().entries.filter((e) => e.removedAt).length, 3, 'ledger did not record the removals');
-    assert.strictEqual(reportFiles('uninstall-').length, 1, JSON.stringify(reportFiles('uninstall-')));
+    assert.strictEqual(reportFiles('uninstall-').length, reportsBefore + 1, JSON.stringify(reportFiles('uninstall-')));
     const again = runLedger(['uninstall']);
     assert.ok(again.out.includes('0 removable'), again.out.slice(-300));
     assert.ok(again.out.includes('already gone  brew:widget'), again.out.slice(-300));
