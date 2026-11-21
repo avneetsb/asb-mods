@@ -36,9 +36,9 @@ machine. Removal is only ever what you explicitly authorise with `--allow-destru
 Nothing is cached between runs, so the version is whatever the ref points at:
 
 ```bash
-npx github:avneetsb/asb-mods#v0.3.0 --dry-run    # pinned: what this release would do
+npx github:avneetsb/asb-mods#v0.3.1 --dry-run    # pinned: what this release would do
 npx github:avneetsb/asb-mods#main   --dry-run    # moving: current main
-npx github:avneetsb/asb-mods#v0.3.0 install      # deploy the pinned payload
+npx github:avneetsb/asb-mods#v0.3.1 install      # deploy the pinned payload
 ```
 
 Pin a tag on any machine you care about. `#main` is fine for a throwaway VM and wrong for your laptop,
@@ -91,11 +91,11 @@ The git tag points at the commit whose payload was live at archive time — pair
 ### Layer 4 — roll back the package version
 
 ```bash
-git tag -l --sort=-creatordate          # what exists: v0.1.0, v0.2.0, then v0.3.0
+git tag -l --sort=-creatordate          # what exists: v0.1.0, v0.2.0, v0.3.0, then v0.3.1
 git checkout v0.1.0 && asbmods install  # deploy the older payload over the newer one
 ```
 
-All three tags are annotated: `v0.3.0` (object `61eb530`) peels to `fe03c92`, the current `main`;
+All four tags are annotated: `v0.3.1` (object `aec2b57`) peels to `c630010`, the current `main`;
 `v0.2.0` (object `5fb2d0d`) peels to `4dba1c8` and `v0.1.0` (object `83819aa`) peels to `22ba077`.
 Deploying an older payload is expected to be safe because Phase 4
 merges rather than replaces — but hooks and tooling classes added after that tag will linger until you

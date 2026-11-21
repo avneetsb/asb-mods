@@ -48,7 +48,7 @@ npx github:avneetsb/asb-mods --dry-run
 npx github:avneetsb/asb-mods                        # detect → archive → install → env/secrets → hooks
 npx "git+https://github.com/avneetsb/asb-mods.git" --dry-run   # HTTPS variant, no SSH key
 npx github:avneetsb/asb-mods#<commit-sha> --dry-run            # pin a specific commit
-npx github:avneetsb/asb-mods#v0.3.0 --dry-run                  # pin a tag
+npx github:avneetsb/asb-mods#v0.3.1 --dry-run                  # pin a tag
 ```
 
 `github:` resolves to `git+ssh` and therefore uses your SSH key; the `git+https` form needs none.
@@ -126,7 +126,7 @@ asserts it creates no archive and no manifest.
 | `node install.js` in the clone | Runs HEAD of your checkout | `git pull` |
 | `npm link` | Symlink into the clone; edits to the working tree are live | `git pull` |
 | `npm install -g .` | Snapshot copy in the npm global prefix | `git pull` **then** `npm install -g .` again |
-| `npx github:avneetsb/asb-mods` | Fetched on demand into an npx cache | nothing — npx re-fetches; pin with `#<sha>` or `#v0.3.0` for reproducibility |
+| `npx github:avneetsb/asb-mods` | Fetched on demand into an npx cache | nothing — npx re-fetches; pin with `#<sha>` or `#v0.3.1` for reproducibility |
 
 Full update procedure, migrations and the three rollback levels:
 [11 — Updating and rollback](11-update-and-rollback.md).

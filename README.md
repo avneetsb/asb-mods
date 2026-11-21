@@ -76,7 +76,7 @@ npx github:avneetsb/asb-mods#<commit-sha> --dry-run            # pin a specific 
 ```
 
 `github:` resolves to `git+ssh`, so it uses your SSH key; the `git+https` form needs none.
-→ `@asbmods/install 0.3.0`, verified when v0.3.0 was tagged — re-run that command after each
+→ `@asbmods/install 0.3.1`, verified when v0.3.1 was tagged — re-run that command after each
 release push, because `github:` resolves the default branch, so it reports whatever `main` holds).
 
 ### First run, in order
