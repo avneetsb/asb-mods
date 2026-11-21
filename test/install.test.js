@@ -1270,6 +1270,88 @@ test('P6: asbmods verify-core answers on the exit code, emits --json, and writes
     'verify-core is documented as read-only but changed the state directory');
 });
 
+section('P12 — documentation that drifts from behaviour fails the suite');
+
+// lib/docsync.js turns the wiki's claims into checks. Two directions matter: today's docs must agree
+// with today's code (a lie in either direction fails), and each guard must actually bite when the two
+// are pulled apart — a guard that never fires is how config/ and the npm install story stayed "true"
+// in print for months.
+
+const DS = require(path.join(PKG, 'lib/docsync.js'));
+
+function docsyncFixture(name) {
+  const dir = path.join(PKG, 'test-tmp', name);
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(path.join(dir, 'docs/wiki'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'lib'), { recursive: true });
+  fs.copyFileSync(path.join(PKG, 'install.js'), path.join(dir, 'install.js'));
+  fs.copyFileSync(path.join(PKG, 'README.md'), path.join(dir, 'README.md'));
+  for (const f of fs.readdirSync(path.join(PKG, 'lib'))) {
+    if (f.endsWith('.js')) fs.copyFileSync(path.join(PKG, 'lib', f), path.join(dir, 'lib', f));
+  }
+  for (const f of fs.readdirSync(path.join(PKG, 'docs/wiki'))) {
+    if (f.endsWith('.md')) fs.copyFileSync(path.join(PKG, 'docs/wiki', f), path.join(dir, 'docs/wiki', f));
+  }
+  fs.mkdirSync(path.join(dir, 'shared-core'), { recursive: true });
+  for (const d of DS.payloadDirs(path.join(PKG, 'shared-core'))) fs.mkdirSync(path.join(dir, 'shared-core', d), { recursive: true });
+  return dir;
+}
+
+test('P12: the shipped docs agree with the shipped code right now', () => {
+  const a = DS.audit(PKG);
+  assert.deepEqual(a.findings, [], 'docs and behaviour disagree:\n  ' + a.findings.map((f) => `[${f.check}] ${f.message}`).join('\n  '));
+  // A guard that sees nothing proves nothing. These counts are the audit's own coverage.
+  assert.ok(a.counts.codeVerbs >= 15, `only ${a.counts.codeVerbs} commands cross-checked`);
+  assert.ok(a.counts.codeFlags >= 12, `only ${a.counts.codeFlags} flags cross-checked`);
+  assert.ok(a.counts.codePhases >= 8, `only ${a.counts.codePhases} phases cross-checked`);
+  assert.ok(a.counts.dirs >= 8, `only ${a.counts.dirs} payload directories cross-checked`);
+});
+
+test('P12: each guard bites when docs and code are pulled apart', () => {
+  const cases = [
+    ['verbs', (d) => fs.writeFileSync(path.join(d, 'install.js'),
+      fs.readFileSync(path.join(d, 'install.js'), 'utf8').replace("const KNOWN_COMMANDS = [", "const KNOWN_COMMANDS = ['brand-new-verb',"))],
+    ['flags', (d) => fs.writeFileSync(path.join(d, 'install.js'),
+      fs.readFileSync(path.join(d, 'install.js'), 'utf8').replace("a === '--strict'", "a === '--brand-new-flag' || a === '--strict'"))],
+    ['env', (d) => fs.appendFileSync(path.join(d, 'lib', 'paths.js'), '\nconst W = process.env.ASB_MODS_BRAND_NEW;\nmodule.exports.W = W;\n')],
+    ['payload-dirs', (d) => fs.mkdirSync(path.join(d, 'shared-core', 'brandnew'), { recursive: true })],
+    ['phases', (d) => fs.writeFileSync(path.join(d, 'install.js'),
+      fs.readFileSync(path.join(d, 'install.js'), 'utf8').replace("banner('Phase 4b — npm globals from manifest')", "banner('Phase 4c — npm globals from manifest')"))],
+    ['install-story', (d) => fs.appendFileSync(path.join(d, 'docs/wiki/01-installation.md'), '\n```bash\nnpm i -g @asbmods/install\n```\n')],
+  ];
+  for (const [check, mutate] of cases) {
+    const dir = docsyncFixture('docsync-' + check);
+    mutate(dir);
+    const a = DS.audit(dir);
+    assert.ok(!a.ok, `mutating ${check} produced no finding — the guard cannot fire`);
+    assert.ok(a.findings.some((f) => f.check === check),
+      `expected a "${check}" finding, got: ${a.findings.map((f) => f.check).join(', ') || 'none'}`);
+    // The untouched baseline must stay clean, or the mutation is just adding noise.
+    const control = docsyncFixture('docsync-control-' + check);
+    assert.deepEqual(DS.audit(control).findings, [], `the fixture itself is not clean before mutating (${check})`);
+  }
+});
+
+test('P12: an npm route is flagged only when a reader would paste it, not when docs explain the 404', () => {
+  const flag = (text) => DS.npmRouteClaims({ 'probe.md': text }).length;
+  assert.equal(flag('```bash\nnpm i -g @asbmods/install\n```'), 1, 'a fenced install instruction must be flagged');
+  assert.equal(flag('$ npx @asbmods/install@latest'), 1, 'a command-position route must be flagged');
+  assert.equal(flag('`npx @asbmods/install` (bare name) does not work. `npm view @asbmods/install` returns 404.'), 0,
+    'prose explaining the 404 is documentation, not a claim');
+  assert.equal(flag('```bash\n$ npm view @asbmods/install\nnpm error code E404\n```'), 0,
+    'a block that shows the failure is a demonstration, not an instruction');
+
+  // The repo's own disclaimers are the real positive control: they name the route to say it fails.
+  const realDocs = {};
+  for (const f of fs.readdirSync(path.join(PKG, 'docs/wiki'))) {
+    if (f.endsWith('.md')) realDocs[`docs/wiki/${f}`] = fs.readFileSync(path.join(PKG, 'docs/wiki', f), 'utf8');
+  }
+  realDocs['README.md'] = fs.readFileSync(path.join(PKG, 'README.md'), 'utf8');
+  assert.deepEqual(DS.npmRouteClaims(realDocs), [], 'the shipped docs must not contain a runnable npm route while publishing is parked');
+  const namedIt = Object.entries(realDocs).filter(([, t]) => t.includes('@asbmods/install')).length;
+  assert.ok(namedIt >= 3, 'the positive control is vacuous if no real doc names the npm route at all');
+});
+
 section('bootstrap.sh — the only part of the repository that runs without Node');
 
 // install.js *is* Node, so a machine without it cannot be helped by the package. bootstrap.sh is
