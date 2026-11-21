@@ -825,6 +825,60 @@ section('17b brew mislabelled formula twins are deferred, never installed as for
   fs.rmSync(fx, { recursive: true, force: true });
 }
 
+// ── 17c. Packaged data must not carry this machine's identity. The tooling-tree screen above covers
+// shared-core/tooling only; the payload ships all of shared-core plus the installer itself, and a
+// hostname is the identity that survives a username change (plan §6 row 231 adds it to the scan).
+section('17c packaged data carries no machine hostname or home path');
+{
+  const hostTokens = (() => {
+    const hn = String(os.hostname() || '');
+    const short = hn.split('.')[0];
+    return [...new Set([hn, short, hn.toLowerCase(), short.toLowerCase()])]
+      .filter((t) => t && t.length >= 4 && t.toLowerCase() !== 'localhost');
+  })();
+
+  // Files the package actually ships, listed by git so the set is the repo's own truth. A checkout
+  // without git metadata falls back to walking the shipped directories rather than passing vacuously.
+  const listed = cp.spawnSync('git', ['ls-files'], { cwd: REPO, encoding: 'utf8' });
+  const shipped = listed.status === 0 && listed.stdout.trim()
+    ? listed.stdout.split('\n').filter((f) => f && (
+      f.startsWith('shared-core/') || f.startsWith('lib/') || f.startsWith('scripts/')
+      || f === 'install.js' || f === 'README.md' || f === 'package.json'))
+    : ['shared-core', 'lib', 'scripts'].flatMap((d) => {
+      const out = [];
+      const walk = (dir) => {
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+          const p = path.join(dir, e.name);
+          if (e.isDirectory()) walk(p); else out.push(p);
+        }
+      };
+      const abs = path.join(REPO, d);
+      if (fs.existsSync(abs)) walk(abs);
+      if (d === 'shared-core') out.push('install.js', 'README.md');
+      return out;
+    });
+
+  test(`packaged data: ${shipped.length} shipped file(s) scanned for hostname and home path`, () => {
+    assert.ok(shipped.length > 150, `only ${shipped.length} file(s) in scope — the scan would prove nothing`);
+    assert.ok(hostTokens.length >= 1, 'hostname produced no token to search for — the scan would prove nothing');
+  });
+
+  test(`packaged data: no file contains this machine's hostname (${hostTokens.join('/')}) or home path`, () => {
+    const hits = [];
+    for (const rel of shipped) {
+      const abs = path.isAbsolute(rel) ? rel : path.join(REPO, rel);
+      if (!fs.existsSync(abs)) continue;
+      let text;
+      try { text = fs.readFileSync(abs, 'utf8'); } catch { continue; }
+      const low = text.toLowerCase();
+      for (const t of hostTokens) if (low.includes(t.toLowerCase())) hits.push(`${rel} (hostname ${t})`);
+      if (text.includes(os.homedir())) hits.push(`${rel} (home path)`);
+    }
+    assert.deepStrictEqual(hits.slice(0, 8), [],
+      `${hits.length} shipped file(s) carry machine identity: ${hits.slice(0, 8).join('; ')} — substitute {{HOME}} and drop the hostname`);
+  });
+}
+
 // ── 18. phase 4 really installs casks AS casks (a fake brew records every argv)
 section('18 brew phase installs formulae and casks with the right subcommand');
 {
