@@ -24,6 +24,33 @@ shared-core/
 
 `policy.local.json` is gitignored (`~/.agents/config-backups/**`-style local override, see page 07).
 
+## Who reads what, and the packaged inventory (`MANIFEST.sha256`)
+
+Every file under this directory ships in the tarball, so two facts about it are asserted by tests
+rather than trusted:
+
+**One owner per path.** `lib/payload.js` declares, for each payload path, the single module that
+deploys or applies it (plus the modules that merely inspect it — `lib/detect.js` reports on
+everything it can find, which is not ownership). For the vendored `tooling/` tree ownership is proven
+structurally: `tooling/manifest.json` enumerates 46 bundles, and every file under `tooling/` must sit
+under one of them, so a vendored artifact that no bundle deploys fails the suite instead of shipping
+dead weight.
+
+**What nothing reads is declared, not hidden.** `lib/payload.js` `UNREAD` lists the payload paths no
+module reads today: `config/` (`settings-schema.json`, `agent-overrides.json` and its directory,
+`migrations.json` and its directory), `prompts/adapters/`, `brew/deps.json` and
+`prompts-sync-guide.md`. That list is a ratchet — a test fails if a payload file falls outside both
+the owned set and the unread list, and also if a listed prefix stops covering anything, so it can only
+shrink as those files get wired up or removed.
+
+**The payload you deploy is the payload that was packaged.** `MANIFEST.sha256` holds one
+`<sha256>  ./<posix path>` line per payload file (the inventory itself is excluded).
+`node tools/make-manifest.js` regenerates it; `npm test` runs `--check`, so editing a payload file
+without regenerating fails the suite instead of shipping an inventory that lies.
+[`asbmods verify-core`](04-cli-reference.md) checks a core directory against it read-only and reports
+`missing` / `changed` / `untracked`, treating an absent or malformed inventory as a failure — without
+it there is no chain to verify against.
+
 ## `agents/agnostic/` — the three reference cards
 
 | File | Top-level keys | Role |

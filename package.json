@@ -19,7 +19,8 @@
   },
   "scripts": {
     "lint:payload-tokens": "node scripts/check-payload-tokens.cjs",
-    "test": "node scripts/check-payload-tokens.cjs && node test/install.test.js"
+    "manifest": "node tools/make-manifest.js",
+    "test": "node scripts/check-payload-tokens.cjs && node tools/make-manifest.js --check && node test/install.test.js"
   },
   "keywords": [
     "pi",

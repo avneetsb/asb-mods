@@ -29,6 +29,7 @@ const secretsmod = require('./lib/secrets');
 const npmpkgs = require('./lib/npmpkgs');
 const restore = require('./lib/restore');
 const prereqs = require('./lib/prereqs');
+const payload = require('./lib/payload');
 const agentsmod = require('./lib/agents');
 const ledger = require('./lib/ledger');
 
@@ -61,6 +62,7 @@ Commands
   npm        Report npm globals from shared-core/npm/manifest.json
   status     Show what is deployed and how it was verified
   doctor     Read-only prerequisite check: Node, npm, git, Xcode CLT, Homebrew, agent CLIs
+  verify-core Read-only payload integrity: shared-core/MANIFEST.sha256 vs the files on disk
   reset      Restore removed artifacts from the latest archive
   uninstall    What this installer put on the machine: plan its removal (needs --yes to run)
   help       This text
@@ -142,7 +144,7 @@ function parseArgv(argv) {
 }
 
 const KNOWN_COMMANDS = ['all', 'detect', 'archive', 'remove', 'install', 'npm', 'brew', 'env',
-  'secrets', 'hooks', 'status', 'reset', 'doctor', 'uninstall', 'help'];
+  'secrets', 'hooks', 'status', 'reset', 'doctor', 'verify-core', 'uninstall', 'help'];
 const KNOWN_AGENTS = ['pi', 'claude', 'codex'];
 
 // Typos must not degrade into a silently different run. `asbmods instal` used to behave as
@@ -166,7 +168,7 @@ function validateUsage(command, flags) {
   // A read-only command that quietly accepts --install-prereqs teaches people that flags are
   // decoration: `asbmods doctor --install-prereqs` used to print a table and exit 0 as if the
   // installs had been considered. Refuse the combination and name the command they belong to.
-  const READ_ONLY_COMMANDS = ['doctor', 'status'];
+  const READ_ONLY_COMMANDS = ['doctor', 'status', 'verify-core'];
   const MUTATING_FLAGS = ['installBrew', 'installNpm', 'installPrereqs', 'installAgents',
     'rotateSecrets', 'allowDestructive'];
   if (READ_ONLY_COMMANDS.includes(command)) {
@@ -229,6 +231,27 @@ async function main() {
     banner('Doctor — prerequisites (read-only)');
     const verdict = prereqs.doctor(flags, log);
     process.exit(verdict.ok ? 0 : 1);
+  }
+
+  // verify-core is read-only payload integrity: it answers "is the payload I am about to deploy the
+  // payload that was packaged?" An absent or malformed inventory is a failure, never a pass — with no
+  // inventory there is nothing to verify against, and a silent pass would claim a chain that is not there.
+  if (command === 'verify-core') {
+    const v = payload.verifyCore(P.CORE);
+    // --json means "a machine is reading this": emit exactly one JSON object and no prose, so the
+    // consumer never has to dig a document out of a banner.
+    if (!flags.json) {
+      banner('Verify core — payload integrity (read-only)');
+      for (const c of v.checks) log(c.verdict === 'pass' ? 'ok' : 'err', `${c.name} — ${c.detail}${c.fix ? `  fix: ${c.fix}` : ''}`);
+    }
+    const failures = v.checks.filter((c) => c.verdict !== 'pass').length;
+    const envelope = {
+      verb: 'verify-core', ok: failures === 0, core: P.CORE, inventory: v.inventory,
+      checks: v.checks, summary: v.summary, exitCode: failures ? 1 : 0,
+    };
+    if (flags.json) console.log(JSON.stringify(envelope, null, 2));
+    else log(failures ? 'err' : 'ok', `${v.summary.entries} hashed file(s): ${v.summary.missing} missing, ${v.summary.changed} changed, ${v.summary.untracked} untracked`);
+    process.exit(envelope.exitCode);
   }
 
   // uninstall works from the install ledger, so it needs neither shared-core nor a phase run.

@@ -1171,6 +1171,105 @@ test('P5: lib/fsx.js is the only file that writes out a placeholder map', () => 
   assert.deepEqual(offenders, [], 'an inline placeholder map drifts from the factory — build it with X.vars(P)');
 });
 
+section('P6 — every payload path has one owner, and the shipped inventory can prove what it deployed');
+
+// Before P6 nothing asserted which module reads a shared-core subtree, and nothing checked that the
+// payload on disk is the payload that was packaged. config/ sat in the first hole the whole time: three
+// files shipped and documented, read by nothing. lib/payload.js now declares ownership (proven for
+// tooling/ by the 46 bundle entries that actually deploy it), keeps a ratchet for what is unread, and
+// verify-core compares a core directory against shared-core/MANIFEST.sha256.
+
+test('P6: ownership covers the payload exactly — no orphans, no stale unread claims', () => {
+  const P6 = require(path.join(PKG, 'lib/payload.js'));
+  const report = P6.checkCoupling(path.join(PKG, 'shared-core'));
+  assert.deepEqual(report.problems, [], 'a declared owner does not hold: ' + report.problems.join(' | '));
+  assert.deepEqual(report.strays, [], `payload files no module owns and no unread entry covers: ${report.strays.slice(0, 8).join(', ')}`);
+  assert.deepEqual(report.staleUnread, [], 'UNREAD names a prefix that covers nothing any more — wire it up, delete it, or drop the entry');
+  assert.ok(report.bundlePaths >= 40, `only ${report.bundlePaths} tooling bundles were read, so tooling/ ownership is not being proven`);
+  for (const o of P6.OWNED) {
+    assert.ok(o.owner, `${o.path} names no owner`);
+    assert.ok(fs.existsSync(path.join(PKG, o.owner)), `${o.path}: owner ${o.owner} does not exist`);
+  }
+});
+
+test('P6: the committed inventory matches the tree, and --check proves it without writing', () => {
+  const coreDir = path.join(PKG, 'shared-core');
+  const before = fs.readFileSync(path.join(coreDir, 'MANIFEST.sha256'), 'utf8');
+  const r = cp.spawnSync(process.execPath, [path.join(PKG, 'tools/make-manifest.js'), '--check'], { cwd: PKG, encoding: 'utf8' });
+  assert.equal(r.status, 0, `the shipped inventory is stale: ${r.stderr.slice(0, 400)}`);
+  const entries = require(path.join(PKG, 'lib/payload.js')).parseManifest(before).entries;
+  assert.ok(entries.length > 150, `only ${entries.length} payload files are hashed — the inventory is not covering the tree`);
+  assert.ok(entries.every((e) => /^[0-9a-f]{64}$/.test(e.sha) && !e.rel.startsWith('/')),
+    'inventory lines must be "<sha256>  ./relative/path", the format anything consuming it parses');
+});
+
+test('P6: verify-core tells missing from changed, and a missing inventory is an error', () => {
+  const P6 = require(path.join(PKG, 'lib/payload.js'));
+  const src = path.join(PKG, 'shared-core');
+  const tampered = path.join(PKG, 'test-tmp', 'core-tampered');
+  fs.rmSync(tampered, { recursive: true, force: true });
+  fs.cpSync(src, tampered, { recursive: true });
+  fs.appendFileSync(path.join(tampered, 'env/shell-env.sh'), '\n# tampered by a test\n');
+  fs.rmSync(path.join(tampered, 'hooks/hooks.json'));
+  const v = P6.verifyCore(tampered);
+  assert.equal(v.inventory, 'ok');
+  assert.deepEqual([v.summary.missing, v.summary.changed], [1, 1],
+    `expected exactly one missing and one changed: ${JSON.stringify(v.summary)}`);
+  const names = v.checks.map((c) => c.name);
+  assert.ok(names.includes('missing:hooks/hooks.json'), 'the failing path must be named, not just counted');
+  assert.ok(names.includes('changed:env/shell-env.sh'), 'the differing path must be named, not just counted');
+  assert.ok(v.checks.every((c) => c.verdict === 'pass' || c.fix), 'every failure has to carry the command that fixes it');
+
+  const bare = path.join(PKG, 'test-tmp', 'core-no-inventory');
+  fs.rmSync(bare, { recursive: true, force: true });
+  fs.cpSync(src, bare, { recursive: true });
+  fs.rmSync(path.join(bare, 'MANIFEST.sha256'));
+  const absent = P6.verifyCore(bare);
+  assert.equal(absent.inventory, 'absent', 'a core with no inventory must be reported as unverifiable');
+  assert.ok(absent.checks.some((c) => c.verdict === 'fail'), 'an absent inventory is a failure, never a silent pass');
+
+  const broken = path.join(PKG, 'test-tmp', 'core-bad-inventory');
+  fs.rmSync(broken, { recursive: true, force: true });
+  fs.cpSync(src, broken, { recursive: true });
+  fs.writeFileSync(path.join(broken, 'MANIFEST.sha256'), 'not a manifest line\n');
+  const malformed = P6.verifyCore(broken);
+  assert.equal(malformed.inventory, 'malformed', 'a malformed inventory must not be read as clean');
+});
+
+test('P6: asbmods verify-core answers on the exit code, emits --json, and writes nothing', () => {
+  const stateBefore = fs.existsSync(XDG) ? fs.readdirSync(XDG) : [];
+  const runVerify = (core, extra = []) => cp.spawnSync(process.execPath, [path.join(PKG, 'install.js'), 'verify-core', ...extra], {
+    cwd: PKG, encoding: 'utf8', input: '',
+    env: { ...process.env, ASB_MODS_HOME: HOME, ASB_MODS_CORE: core, XDG_CONFIG_HOME: XDG, NO_COLOR: '1' },
+  });
+  const clean = runVerify(path.join(PKG, 'shared-core'), ['--json']);
+  assert.equal(clean.status, 0, `a clean payload must exit 0. tail: ${clean.stdout.slice(-300)}${clean.stderr.slice(-200)}`);
+  const envelope = JSON.parse(clean.stdout);
+  assert.equal(envelope.verb, 'verify-core');
+  assert.equal(envelope.ok, true, 'the envelope must say ok for a clean payload');
+  assert.equal(envelope.exitCode, 0);
+  assert.ok(Array.isArray(envelope.checks) && envelope.checks.length, 'the envelope carries no checks — it proves nothing');
+  assert.ok(envelope.checks.every((c) => ['name', 'verdict', 'detail', 'fix'].every((k) => k in c)),
+    'every check needs name/verdict/detail/fix so a consumer can act on it');
+
+  const drift = path.join(PKG, 'test-tmp', 'core-cli-drift');
+  fs.rmSync(drift, { recursive: true, force: true });
+  fs.cpSync(path.join(PKG, 'shared-core'), drift, { recursive: true });
+  fs.rmSync(path.join(drift, 'npm/manifest.json'));
+  const bad = runVerify(drift, ['--json']);
+  assert.equal(bad.status, 1, 'payload drift must be visible in the exit code, not only in prose');
+  const badEnv = JSON.parse(bad.stdout);
+  assert.equal(badEnv.ok, false);
+  assert.equal(badEnv.summary.missing, 1);
+
+  const misuse = runVerify(path.join(PKG, 'shared-core'), ['--install-brew']);
+  assert.equal(misuse.status, 2, 'verify-core is read-only and must refuse a mutating flag');
+  assert.match(`${misuse.stdout}${misuse.stderr}`, /read-only/);
+
+  assert.deepEqual(fs.existsSync(XDG) ? fs.readdirSync(XDG) : [], stateBefore,
+    'verify-core is documented as read-only but changed the state directory');
+});
+
 section('bootstrap.sh — the only part of the repository that runs without Node');
 
 // install.js *is* Node, so a machine without it cannot be helped by the package. bootstrap.sh is
